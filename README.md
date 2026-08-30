@@ -65,6 +65,14 @@ Tables are declared in `db/schema.ts`; deployment migrations are in `drizzle/`. 
 
 ## Design and credits
 
+The working portal uses a restrained civic-service presentation: navy-and-white
+masthead, horizontal service navigation, a structured report register, plain
+page headings, and bordered forms. `app/government.css` is the presentation
+layer over the existing component styles. The name, data model, reporting and
+camera workflows, and existing social-preview image are preserved. A prominent
+demonstration notice makes clear that this is not an official government service.
+The dated backup outside this project retains the previous design.
+
 Lucide icons; Leaflet maps with OpenStreetMap attribution. The branded social card was generated with the built-in image-generation tool using the Reliable Snitch title and tagline, forest-green/ivory/lime palette, and abstract street-grid motif. No generated picture is presented as real evidence of a civic issue.
 
 The existing hosted address and TE-prefixed report references are intentionally preserved so saved links and reports remain valid after rebranding.

@@ -86,15 +86,14 @@ export default function Tracker({
   return (
     <div className="citizen-page">
       <CitizenHeader />
-      <main className="tracker-layout">
+      <main className="tracker-layout" id="citizen-main">
         <div className="tracker-intro">
-          <div className="eyebrow">KEEP AN EYE ON THE NEXT STEP</div>
-          <h1>
-            Your report has a story.
-            <br />
-            <span>Follow it here.</span>
-          </h1>
-          <p>See who’s handling it, what’s changed, and what happens next.</p>
+          <div className="eyebrow">CITIZEN SERVICES</div>
+          <h1>Track report status</h1>
+          <p>
+            Enter your report reference to view its status, assigned department
+            and public updates.
+          </p>
         </div>
         <form className="tracking-search" onSubmit={submit}>
           <label htmlFor="tracking-code" className="sr-only">
@@ -127,12 +126,7 @@ export default function Tracker({
         )}
         {!report && !busy && !error && (
           <div className="tracker-empty">
-            <div className="tracker-eye">
-              <span className="eye-mark">
-                <i />
-              </span>
-            </div>
-            <h2>A little transparency goes a long way.</h2>
+            <h2>Where to find your reference number</h2>
             <p>
               Your reference was shown when you submitted the report.
               <br />
@@ -202,7 +196,7 @@ export default function Tracker({
             <section className="panel tracking-history">
               <div className="panel-heading">
                 <div>
-                  <h2>Progress, in the open</h2>
+                  <h2>Report progress and public updates</h2>
                   <p>Public updates from the demonstration operations team.</p>
                 </div>
               </div>
@@ -226,7 +220,7 @@ export default function Tracker({
         </div>
       </main>
       <footer className="citizen-footer">
-        <span>RELIABLE SNITCH · SPOT IT. REPORT IT. RESOLVE IT.</span>
+        <span>RELIABLE SNITCH · CIVIC SERVICES MANAGEMENT PORTAL</span>
         <Link href="/about">About this prototype</Link>
       </footer>
     </div>

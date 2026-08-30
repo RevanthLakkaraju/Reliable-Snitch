@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./readability.css";
+import "./government.css";
 import { siteOrigin } from "@/lib/site-metadata";
 
 const geistSans = Geist({

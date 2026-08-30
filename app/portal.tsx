@@ -45,34 +45,34 @@ import ReportDetail, { Timeline } from "./components/report-detail";
 import CityMap from "./components/city-map";
 const titles: Record<string, [string, string, string]> = {
   overview: [
-    "A CLEARER VIEW OF YOUR CITY",
-    "Small reports. Real change.",
-    "One place to see, coordinate, and resolve civic disruptions.",
+    "OPERATIONS OVERVIEW",
+    "Civic services dashboard",
+    "Monitor reported disruptions, department assignments and resolution status.",
   ],
   disruptions: [
-    "FROM REPORT TO RESOLUTION",
-    "Every disruption, accounted for.",
-    "Keep the next step clear and the right people connected.",
+    "REPORT MANAGEMENT",
+    "Disruption register",
+    "Search reports, review the details and record the next action.",
   ],
   map: [
-    "THE BIGGER PICTURE",
-    "Your city, in context.",
+    "LOCATION INFORMATION",
+    "Disruption location map",
     "See where disruptions are happening. Open a marker to take action.",
   ],
   departments: [
-    "BETTER, TOGETHER",
-    "A shared responsibility.",
-    "Clear ownership across every department and every report.",
+    "DEPARTMENT COORDINATION",
+    "Department workload",
+    "Review assigned reports and outstanding work by department.",
   ],
   activity: [
-    "A RECORD OF PROGRESS",
-    "Every update leaves a trace.",
-    "Follow the decisions and work behind each disruption.",
+    "REPORT HISTORY",
+    "Activity register",
+    "Review status changes, assignments and recorded updates.",
   ],
   about: [
-    "SPOT IT. REPORT IT. RESOLVE IT.",
-    "Attention, turned into action.",
-    "A practical prototype for more transparent civic coordination.",
+    "HELP & INFORMATION",
+    "About this portal",
+    "Service overview, demonstration guidance and prototype limitations.",
   ],
 };
 export default function Portal({ view = "overview" }: { view?: string }) {
@@ -386,14 +386,14 @@ export default function Portal({ view = "overview" }: { view?: string }) {
               {
                 label: "In progress",
                 value: inProgress,
-                hint: "Work happening on the ground",
+                hint: "Reports marked as in progress",
                 Icon: Activity,
                 tone: "amber",
               },
               {
                 label: "Resolved",
                 value: resolved,
-                hint: "A clear outcome, recorded",
+                hint: "Reports marked as resolved",
                 Icon: CheckCircle2,
                 tone: "lime",
               },
@@ -408,21 +408,19 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                     )
                     .map((r) => r.department),
                 ).size,
-                hint: "Working together",
+                hint: "Departments with open assignments",
                 Icon: Building2,
                 tone: "blue",
               },
             ].map(({ label, value, hint, Icon, tone }) => (
-              <div className="stat-card" key={label}>
+              <div className={"stat-card stat-" + tone} key={label}>
                 <div className="stat-top">
                   <span>{label}</span>
                   <span className={"stat-icon " + tone}>
                     <Icon size={16} />
                   </span>
                 </div>
-                <strong>
-                  {loading ? "—" : String(value).padStart(2, "0")}
-                </strong>
+                <strong>{loading ? "—" : value}</strong>
                 <small>{hint}</small>
               </div>
             ))}
@@ -448,6 +446,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                       <button
                         className={display === "list" ? "active" : ""}
                         aria-label="List view"
+                        aria-pressed={display === "list"}
                         onClick={() => setDisplay("list")}
                       >
                         <List size={15} />
@@ -455,6 +454,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                       <button
                         className={display === "board" ? "active" : ""}
                         aria-label="Status board view"
+                        aria-pressed={display === "board"}
                         onClick={() => setDisplay("board")}
                       >
                         <Columns3 size={15} />
@@ -467,7 +467,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                     disabled={!filtered.length}
                   >
                     <Download size={13} />
-                    <span>Export</span>
+                    <span>Export CSV</span>
                   </button>
                 </div>
               </div>
@@ -477,6 +477,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                     <button
                       key={status}
                       className={statusFilter === status ? "active" : ""}
+                      aria-pressed={statusFilter === status}
                       onClick={() => setStatusFilter(status)}
                     >
                       {status}
@@ -565,55 +566,61 @@ export default function Portal({ view = "overview" }: { view?: string }) {
             </div>
             {view === "overview" && (
               <aside className="dashboard-aside">
-                <section className="panel progress-panel">
+                <section className="panel resolution-panel">
                   <div className="panel-heading">
                     <h2>Resolution progress</h2>
                     <CheckCircle2 size={16} className="muted" />
                   </div>
+                  <div className="resolution-summary">
+                    <strong>{loading ? "—" : ratio + "%"}</strong>
+                    <span>of displayed reports resolved</span>
+                  </div>
                   <div
-                    className="progress-donut"
-                    style={{
-                      background: `conic-gradient(#6f9455 0 ${ratio}%, #edf0e7 ${ratio}% 100%)`,
-                    }}
+                    className="resolution-meter"
+                    role="progressbar"
+                    aria-label="Report resolution rate"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={loading ? undefined : ratio}
                   >
+                    <span style={{ width: `${loading ? 0 : ratio}%` }} />
+                  </div>
+                  <dl className="resolution-totals">
                     <div>
-                      <strong>{loading ? "—" : ratio + "%"}</strong>
-                      <span>resolved</span>
+                      <dt>Resolved</dt>
+                      <dd>{loading ? "—" : resolved}</dd>
                     </div>
-                  </div>
-                  <div className="progress-legend">
-                    <span>
-                      <i className="resolved-dot" />
-                      Resolved <strong>{resolved}</strong>
-                    </span>
-                    <span>
-                      <i />
-                      Open <strong>{open}</strong>
-                    </span>
-                  </div>
+                    <div>
+                      <dt>Outstanding</dt>
+                      <dd>{loading ? "—" : open}</dd>
+                    </div>
+                    <div>
+                      <dt>Total reports</dt>
+                      <dd>{loading ? "—" : visible.length}</dd>
+                    </div>
+                  </dl>
                   <p className="chart-note">
-                    Based on reports shown in this workspace.
+                    Totals follow the “Show demo reports” setting.
                   </p>
                 </section>
-                <section className="mission-card">
-                  <div className="eyebrow">FROM NOTICE TO ACTION</div>
-                  <h2>
-                    See something?
-                    <br />
-                    Start something.
-                  </h2>
-                  <p>
-                    A photo and a few words can
-                    <br />
-                    make a street a little better.
-                  </p>
-                  <Link href="/report" className="button light">
-                    Open citizen portal <ArrowUpRight size={13} />
-                  </Link>
-                  <div className="mission-circles" aria-hidden="true">
-                    <i />
-                    <i />
-                    <i />
+                <section className="panel citizen-service-panel">
+                  <div className="panel-heading">
+                    <h2>Citizen services</h2>
+                  </div>
+                  <div className="citizen-service-body">
+                    <p>
+                      Submit a disruption report or check the status of an
+                      existing reference.
+                    </p>
+                    <Link href="/report" className="button primary">
+                      Submit a report <ArrowUpRight size={14} />
+                    </Link>
+                    <Link href="/track" className="button">
+                      Track report status <Search size={14} />
+                    </Link>
+                    <small>
+                      Keep your report reference for future enquiries.
+                    </small>
                   </div>
                 </section>
               </aside>
@@ -623,8 +630,8 @@ export default function Portal({ view = "overview" }: { view?: string }) {
             <section className="panel recent-activity">
               <div className="panel-heading">
                 <div>
-                  <h2>Recently, around the workspace</h2>
-                  <p>Small steps forward, captured as they happen.</p>
+                  <h2>Recent report activity</h2>
+                  <p>Latest recorded updates and department actions.</p>
                 </div>
                 <Link className="text-link" href="/activity">
                   All activity <ArrowRight size={13} />
@@ -822,7 +829,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
           })}
           <section className="department-card unassigned-card">
             <Clock size={25} />
-            <h2>Awaiting an owner</h2>
+            <h2>Pending assignment</h2>
             <strong>{unassigned}</strong>
             <p>
               Open a report and assign it to a department to make the next step
@@ -838,7 +845,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
         <section className="panel activity-log">
           <div className="panel-heading">
             <div>
-              <h2>Workspace history</h2>
+              <h2>Recorded actions</h2>
               <p>
                 Status changes, assignments, public updates, and internal notes.
                 Times are in IST.
@@ -886,11 +893,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
           <section className="about-hero">
             <div>
               <div className="eyebrow">THE PROBLEM WE ADDRESS</div>
-              <h2>
-                A complaint is only
-                <br />
-                the beginning.
-              </h2>
+              <h2>A single record from report to resolution</h2>
               <p>
                 When reports are scattered across messages, spreadsheets, and
                 phone calls, ownership and progress can become unclear. Reliable
@@ -898,16 +901,16 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                 update into one shared workflow.
               </p>
               <Link href="/report" className="button light">
-                Try the citizen experience <ArrowUpRight size={14} />
+                Open report registration <ArrowUpRight size={14} />
               </Link>
             </div>
             <div className="about-steps">
               {[
-                "Notice a disruption",
-                "Share a photo and your words",
-                "Give it an owner",
-                "Keep progress visible",
-                "Close the loop",
+                "Register a disruption",
+                "Review the report and evidence",
+                "Assign a responsible department",
+                "Record progress and public updates",
+                "Resolve and retain the report history",
               ].map((s, i) => (
                 <div key={s}>
                   <span>0{i + 1}</span>
@@ -919,7 +922,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
           <div className="about-grid">
             <section className="panel prose">
               <ShieldCheck size={25} />
-              <h2>What really works</h2>
+              <h2>Available services</h2>
               <ul>
                 <li>Shared, persistent reports and photo uploads.</li>
                 <li>
@@ -934,7 +937,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
             </section>
             <section className="panel prose">
               <Info size={25} />
-              <h2>What is simulated</h2>
+              <h2>Prototype limitations</h2>
               <ul>
                 <li>
                   This is a private ideathon demonstration, not a municipal
@@ -960,7 +963,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
             </section>
           </div>
           <section className="panel prose">
-            <h2>For your ideathon demo</h2>
+            <h2>Demonstration guide</h2>
             <p>
               Open the citizen portal, use a clearly labelled demo location, and
               submit a photo with a short description. Open the new report in

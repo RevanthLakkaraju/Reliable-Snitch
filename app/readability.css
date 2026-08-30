@@ -158,7 +158,7 @@
     .detail-subline,
     .detail-reference
   ) {
-  color: #647257;
+  color: var(--muted);
 }
 .main-content
   :is(
@@ -171,7 +171,7 @@
     .map-toolbar select,
     .map-legend
   ) {
-  color: #65745a;
+  color: var(--muted);
 }
 .reports-table th {
   font-size: 9px;
@@ -229,7 +229,7 @@
     .timeline-item small,
     .timeline-title time
   ) {
-  color: #66765a;
+  color: var(--muted);
 }
 .citizen-page
   :is(
@@ -240,11 +240,11 @@
     .tracking-description h3,
     .timeline-title strong
   ) {
-  color: #526d3d;
+  color: var(--ink);
 }
 .citizen-page :is(input, textarea)::placeholder,
 .search-box input::placeholder {
-  color: #6f7c64;
+  color: #596b7e;
 }
 .field-hint {
   font-size: 11px;

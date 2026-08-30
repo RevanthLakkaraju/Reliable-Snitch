@@ -236,12 +236,12 @@ export default function ReportForm() {
     <div className="citizen-page">
       <CitizenHeader />
       {success ? (
-        <main className="success-layout">
+        <main className="success-layout" id="citizen-main">
           <div className="success-icon">
             <CheckCircle2 size={36} />
           </div>
-          <div className="eyebrow">YOU NOTICED. THAT MATTERS.</div>
-          <h1>Your report is on the record.</h1>
+          <div className="eyebrow">REPORT ACKNOWLEDGEMENT</div>
+          <h1>Report registered successfully</h1>
           <p>
             It’s saved in the demonstration workspace and ready for review.
             <br />
@@ -278,18 +278,13 @@ export default function ReportForm() {
           </button>
         </main>
       ) : (
-        <main className="report-layout">
+        <main className="report-layout" id="citizen-main">
           <aside className="report-intro">
-            <div className="eyebrow">BETTER STREETS START WITH YOU</div>
-            <h1>
-              See something?
-              <br />
-              <span>Say something.</span>
-            </h1>
+            <div className="eyebrow">CITIZEN SERVICES</div>
+            <h1>Report a civic disruption</h1>
             <p>
-              A photo. A few words. A location.
-              <br />
-              Turn what you notice into a clear next step.
+              Provide the issue details and location for review. You will
+              receive a reference number to track your report.
             </p>
             <div className="report-steps">
               <div>
@@ -297,7 +292,7 @@ export default function ReportForm() {
                   <Camera size={18} />
                 </span>
                 <section>
-                  <h3>Show us what you see</h3>
+                  <h3>1. Attach a photograph</h3>
                   <p>A photo helps the team understand the issue.</p>
                 </section>
               </div>
@@ -306,8 +301,11 @@ export default function ReportForm() {
                   <MessageSquare size={18} />
                 </span>
                 <section>
-                  <h3>Tell it in your own words</h3>
-                  <p>No long forms. Just describe what’s happening.</p>
+                  <h3>2. Describe the disruption</h3>
+                  <p>
+                    Explain the issue and its effect on people in your own
+                    words.
+                  </p>
                 </section>
               </div>
               <div>
@@ -315,7 +313,7 @@ export default function ReportForm() {
                   <MapPin size={18} />
                 </span>
                 <section>
-                  <h3>Help the team find it</h3>
+                  <h3>3. Confirm the location</h3>
                   <p>Use your location, a map pin, or a landmark.</p>
                 </section>
               </div>
@@ -327,16 +325,11 @@ export default function ReportForm() {
                 follow it from review to resolution.
               </p>
             </div>
-            <div className="intro-brand-pattern" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
           </aside>
           <section className="report-form-panel">
             <div className="form-heading">
-              <h2>Report a disruption</h2>
-              <span className="tag">About a minute</span>
+              <h2>Disruption registration form</h2>
+              <span className="tag">New report</span>
             </div>
             <div className="form-demo-note">
               <Info size={14} />
@@ -392,7 +385,7 @@ export default function ReportForm() {
                     <strong>
                       {photoBusy
                         ? "Preparing your photo…"
-                        : "A little context goes a long way"}
+                        : "Attach a clear photograph of the issue"}
                     </strong>
                     <p>JPEG, PNG, or WebP · up to 20 MB before compression</p>
                     <div className="upload-actions">
@@ -426,7 +419,7 @@ export default function ReportForm() {
                 </p>
                 <div className="field-heading">
                   <h3>
-                    <span>02</span>What’s happening?
+                    <span>02</span>Description of the disruption
                   </h3>
                   <small>Required</small>
                 </div>
@@ -458,7 +451,7 @@ export default function ReportForm() {
                 </p>
                 <div className="field-heading">
                   <h3>
-                    <span>03</span>Where is it?
+                    <span>03</span>Location of the disruption
                   </h3>
                   <small>Required</small>
                 </div>

@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -13,7 +14,6 @@ import {
   Menu,
   X,
   Plus,
-  LifeBuoy,
   Route,
   Lightbulb,
   Trash2,
@@ -32,20 +32,21 @@ export function Brand() {
         <i />
       </span>
       <span className="brand-name">
-        Reliable Snitch<span className="brand-caption">CIVIC OPERATIONS</span>
+        Reliable Snitch
+        <span className="brand-caption">CIVIC SERVICES MANAGEMENT PORTAL</span>
       </span>
     </Link>
   );
 }
 const navigation = [
-  { id: "overview", href: "/", label: "Overview", Icon: LayoutDashboard },
+  { id: "overview", href: "/", label: "Dashboard", Icon: LayoutDashboard },
   {
     id: "disruptions",
     href: "/disruptions",
-    label: "Disruptions",
+    label: "Disruption register",
     Icon: ClipboardList,
   },
-  { id: "map", href: "/map", label: "City view", Icon: Map },
+  { id: "map", href: "/map", label: "Location map", Icon: Map },
   {
     id: "departments",
     href: "/departments",
@@ -53,7 +54,47 @@ const navigation = [
     Icon: Building2,
   },
   { id: "activity", href: "/activity", label: "Activity log", Icon: Activity },
+  {
+    id: "about",
+    href: "/about",
+    label: "Portal information",
+    Icon: HelpCircle,
+  },
 ];
+function PortalMasthead() {
+  return (
+    <>
+      <div className="gov-utility">
+        <div className="gov-container">
+          <span>Demonstration portal · Not an official government service</span>
+          <Link href="/about">
+            About this prototype <ChevronRight size={12} />
+          </Link>
+        </div>
+      </div>
+      <header className="gov-masthead">
+        <div className="gov-container gov-masthead-inner">
+          <Brand />
+          <div className="gov-service-label">
+            <Building2 size={28} aria-hidden="true" />
+            <div>
+              <strong>Civic Disruption Management</strong>
+              <span>Report registration &amp; department coordination</span>
+            </div>
+          </div>
+          <div className="gov-citizen-links">
+            <Link href="/report">
+              Submit a report <ArrowUpRight size={14} />
+            </Link>
+            <Link href="/track">
+              Track report status <ChevronRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </header>
+    </>
+  );
+}
 export function Shell({
   active,
   children,
@@ -66,100 +107,63 @@ export function Shell({
   onSearch?: (value: string) => void;
 }) {
   const [menu, setMenu] = useState(false);
+  const menuButton = useRef<HTMLButtonElement>(null);
   return (
-    <div className="app-shell">
+    <div className="app-shell gov-shell">
       <Link href="#main" className="skip-link">
         Skip to content
       </Link>
-      {menu && (
-        <button
-          className="menu-backdrop"
-          onClick={() => setMenu(false)}
-          aria-label="Close navigation"
-        />
-      )}
-      <aside
-        className={"sidebar " + (menu ? "mobile-open" : "")}
-        onClick={(event) => {
-          if (event.target instanceof Element && event.target.closest("a"))
-            setMenu(false);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setMenu(false);
-        }}
-      >
-        <Brand />
-        <button
-          className="icon-button mobile-close"
-          aria-label="Close navigation"
-          onClick={() => setMenu(false)}
-        >
-          <X size={20} />
-        </button>
-        <div className="workspace-label">YOUR WORKSPACE</div>
-        <nav aria-label="Main navigation">
-          {navigation.map(({ id, href, label, Icon }) => (
-            <Link
-              key={id}
-              href={href}
-              className={"nav-item " + (active === id ? "active" : "")}
-              aria-current={active === id ? "page" : undefined}
-            >
-              <Icon size={17} />
-              {label}
-              {id === "disruptions" && (
-                <ChevronRight size={14} className="nav-arrow" />
-              )}
-            </Link>
-          ))}
-        </nav>
-        <div className="nav-divider" />
-        <Link href="/report" className="nav-item">
-          <ArrowUpRight size={17} />
-          Citizen portal
-        </Link>
-        <Link href="/track" className="nav-item">
-          <Search size={17} />
-          Track a report
-        </Link>
-        <Link
-          href="/about"
-          className={"nav-item " + (active === "about" ? "active" : "")}
-        >
-          <LifeBuoy size={17} />
-          About the prototype
-        </Link>
-        <div className="sidebar-bottom">
-          <span className="live-dot" /> Private demo workspace
-          <p>
-            Better streets start with
-            <br />
-            someone paying attention.
-          </p>
-          <div className="operator">
-            <span className="avatar">RS</span>
-            <div>
-              Demo operations team<small>Workspace operator</small>
-            </div>
-          </div>
+      <PortalMasthead />
+      <div className="gov-navigation-band">
+        <div className="gov-container">
+          <button
+            ref={menuButton}
+            className="gov-menu-toggle"
+            aria-label={menu ? "Close navigation" : "Open navigation"}
+            aria-expanded={menu}
+            aria-controls="portal-navigation"
+            onClick={() => setMenu(!menu)}
+          >
+            {menu ? <X size={20} /> : <Menu size={20} />}
+            Portal navigation
+          </button>
+          <nav
+            id="portal-navigation"
+            className={"gov-navigation " + (menu ? "is-open" : "")}
+            aria-label="Main navigation"
+            onClick={(event) => {
+              if (event.target instanceof Element && event.target.closest("a"))
+                setMenu(false);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                setMenu(false);
+                menuButton.current?.focus();
+              }
+            }}
+          >
+            {navigation.map(({ id, href, label, Icon }) => (
+              <Link
+                key={id}
+                href={href}
+                className={active === id ? "active" : undefined}
+                aria-current={active === id ? "page" : undefined}
+              >
+                <Icon size={16} aria-hidden="true" />
+                {label}
+              </Link>
+            ))}
+          </nav>
         </div>
-      </aside>
+      </div>
       <div className="main-shell">
-        <header className="topbar">
+        <div className="gov-container gov-page-toolbar">
           <div className="breadcrumb">
-            <button
-              className="icon-button mobile-menu"
-              aria-label="Open navigation"
-              aria-expanded={menu}
-              onClick={() => setMenu(true)}
-            >
-              <Menu size={20} />
-            </button>
-            <span>Workspace</span>
+            <Link href="/">Operations portal</Link>
             <ChevronRight size={12} />
             <strong>
               {navigation.find((n) => n.id === active)?.label ??
-                "About the prototype"}
+                "Portal information"}
             </strong>
           </div>
           <div className="topbar-actions">
@@ -172,19 +176,23 @@ export function Shell({
                   value={search}
                   onChange={(e) => onSearch(e.target.value)}
                 />
-                <span className="search-hint">⌕</span>
               </label>
             )}
-            <span className="workspace-pill">
-              <span className="live-dot" /> Ideathon prototype
-            </span>
-            <span className="avatar small">RS</span>
+            <span className="gov-operator-label">Demo operations team</span>
           </div>
-        </header>
+        </div>
         <main className="main-content" id="main">
           {children}
           <footer className="page-footer">
-            RELIABLE SNITCH <span>Spot it. Report it. Resolve it.</span>
+            <div>
+              <strong>Reliable Snitch</strong>
+              <span>Civic Services Management Portal</span>
+            </div>
+            <p>
+              Demonstration only. Reports do not notify a municipal or emergency
+              service.
+            </p>
+            <Link href="/about">Portal information</Link>
           </footer>
         </main>
       </div>
@@ -192,16 +200,35 @@ export function Shell({
   );
 }
 export function CitizenHeader() {
+  const pathname = usePathname();
   return (
-    <header className="citizen-header">
-      <Brand />
-      <nav>
-        <Link href="/track">Track a report</Link>
-        <Link className="button" href="/">
-          Operations portal <ArrowUpRight size={14} />
-        </Link>
-      </nav>
-    </header>
+    <>
+      <Link href="#citizen-main" className="skip-link">
+        Skip to content
+      </Link>
+      <PortalMasthead />
+      <div className="gov-navigation-band">
+        <nav
+          className="gov-container gov-citizen-navigation"
+          aria-label="Citizen services"
+        >
+          {[
+            ["/report", "Submit a report"],
+            ["/track", "Track report status"],
+            ["/", "Operations dashboard"],
+            ["/about", "Portal information"],
+          ].map(([href, label]) => (
+            <Link
+              key={href}
+              href={href}
+              aria-current={pathname === href ? "page" : undefined}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </>
   );
 }
 export function StatusBadge({ status }: { status: Status }) {
