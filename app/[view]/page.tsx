@@ -8,7 +8,7 @@ export async function generateMetadata({
 }) {
   const { view } = await params;
   return {
-    title: `${view === "map" ? "City view" : view.charAt(0).toUpperCase() + view.slice(1)} — Third Eye`,
+    title: `${view === "map" ? "City view" : view.charAt(0).toUpperCase() + view.slice(1)} — Reliable Snitch`,
   };
 }
 export default async function ViewPage({

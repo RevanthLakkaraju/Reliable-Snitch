@@ -1,4 +1,4 @@
-# Third Eye
+# Reliable Snitch
 
 **Spot it. Report it. Resolve it.**
 
@@ -65,4 +65,12 @@ Tables are declared in `db/schema.ts`; deployment migrations are in `drizzle/`. 
 
 ## Design and credits
 
-Lucide icons; Leaflet maps with OpenStreetMap attribution. The branded social card was generated with the built-in image-generation tool using the Third Eye title and tagline, forest-green/ivory/lime palette, and abstract street-grid motif. No generated picture is presented as real evidence of a civic issue.
+Lucide icons; Leaflet maps with OpenStreetMap attribution. The branded social card was generated with the built-in image-generation tool using the Reliable Snitch title and tagline, forest-green/ivory/lime palette, and abstract street-grid motif. No generated picture is presented as real evidence of a civic issue.
+
+The existing hosted address and TE-prefixed report references are intentionally preserved so saved links and reports remain valid after rebranding.
+
+## Camera reporting
+
+“Take photo” opens a live camera dialog, prefers the rear camera, and never requests a microphone. Capture, review, retake, use-photo, and camera switching (when multiple cameras are available) are supported. Closing, capturing, switching, or choosing a file releases the current camera. Late permission responses cannot revive a closed camera.
+
+If live camera permission is denied, the interface explains how to retry and offers the device’s native camera picker and ordinary photo upload. Live capture requires a supported browser, HTTPS (or localhost), camera hardware, and permission. An actual phone-camera check is still required before presenting on a particular phone; automated tests use synthetic camera streams/frames, and the test browser denied camera access.

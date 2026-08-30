@@ -28,13 +28,16 @@ export default function CityMap({
   }, [onPick]);
   useEffect(() => {
     let disposed = false;
+    let resizeTimer: ReturnType<typeof setTimeout> | undefined;
     import("leaflet")
       .then((L) => {
         if (disposed || !element.current) return;
-        const m = L.map(element.current, { scrollWheelZoom: false }).setView(
-          [12.9716, 77.5946],
-          14,
-        );
+        const m = L.map(element.current, {
+          scrollWheelZoom: false,
+          zoomAnimation: false,
+          fadeAnimation: false,
+          markerZoomAnimation: false,
+        }).setView([12.9716, 77.5946], 14);
         map.current = m;
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
@@ -51,11 +54,14 @@ export default function CityMap({
           }),
         );
         setReady(true);
-        setTimeout(() => m.invalidateSize(), 100);
+        resizeTimer = setTimeout(() => {
+          if (!disposed && map.current === m) m.invalidateSize();
+        }, 100);
       })
       .catch(() => setMapError(true));
     return () => {
       disposed = true;
+      clearTimeout(resizeTimer);
       map.current?.remove();
       map.current = null;
     };
@@ -127,10 +133,17 @@ export default function CityMap({
           fillOpacity: 1,
           weight: 4,
         }).addTo(layer.current);
-        map.current.setView([selected.latitude, selected.longitude], 16);
+        map.current.setView([selected.latitude, selected.longitude], 16, {
+          animate: false,
+        });
       } else if (points.length > 1)
-        map.current.fitBounds(points, { padding: [45, 45], maxZoom: 15 });
-      else if (points.length === 1) map.current.setView(points[0], 15);
+        map.current.fitBounds(points, {
+          padding: [45, 45],
+          maxZoom: 15,
+          animate: false,
+        });
+      else if (points.length === 1)
+        map.current.setView(points[0], 15, { animate: false });
     });
     return () => {
       cancelled = true;

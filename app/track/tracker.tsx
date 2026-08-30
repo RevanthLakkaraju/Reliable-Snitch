@@ -3,7 +3,13 @@ import Image from "next/image";
 
 import Link from "next/link";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import {
   Search,
   ArrowRight,
@@ -34,10 +40,16 @@ export default function Tracker({
     [events, setEvents] = useState<ReportEvent[]>(initialEvents),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(initialError);
+  const sequence = useRef(0);
   const load = useCallback(async (reference: string) => {
+    const request = ++sequence.current;
     const id = reference.trim().toUpperCase();
     if (!/^TE-[A-Z0-9]{4,12}$/.test(id)) {
       setError("Enter a report reference such as TE-1001.");
+      setReport(null);
+      setEvents([]);
+      setLoadedCode("");
+      setBusy(false);
       return;
     }
     setBusy(true);
@@ -46,15 +58,17 @@ export default function Tracker({
       const data = await requestJson<{ report: Report; events: ReportEvent[] }>(
         "/api/reports/" + encodeURIComponent(id) + "?public=1",
       );
+      if (request !== sequence.current) return;
       setReport(data.report);
       setEvents(data.events);
       setLoadedCode(id);
     } catch (e) {
+      if (request !== sequence.current) return;
       setError((e as Error).message);
       setReport(null);
       setEvents([]);
     } finally {
-      setBusy(false);
+      if (request === sequence.current) setBusy(false);
     }
   }, []);
   useEffect(() => {
@@ -212,7 +226,7 @@ export default function Tracker({
         </div>
       </main>
       <footer className="citizen-footer">
-        <span>THIRD EYE · SPOT IT. REPORT IT. RESOLVE IT.</span>
+        <span>RELIABLE SNITCH · SPOT IT. REPORT IT. RESOLVE IT.</span>
         <Link href="/about">About this prototype</Link>
       </footer>
     </div>

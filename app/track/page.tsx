@@ -17,8 +17,8 @@ export async function generateMetadata({
       report = await findReport(code.toUpperCase());
     } catch {}
   const title = report
-    ? `${report.id}: ${report.title} — Third Eye`
-    : "Track a report — Third Eye";
+    ? `${report.id}: ${report.title} — Reliable Snitch`
+    : "Track a report — Reliable Snitch";
   const description = report
     ? `${report.status} · ${report.department} · ${report.locationText}. Follow this demonstration report's public updates.`
     : "Follow a civic disruption from report to resolution.";

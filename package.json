@@ -1,5 +1,5 @@
 {
-  "name": "third-eye",
+  "name": "reliable-snitch",
   "version": "0.1.0",
   "private": true,
   "engines": {
@@ -11,7 +11,7 @@
     "start": "vinext start",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "test": "node --test tests/domain.test.mjs",
+    "test": "node --test tests/domain.test.mjs tests/camera.test.mjs tests/photo.test.mjs",
     "test:integration": "node --test tests/api.test.mjs",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write app lib db tests"

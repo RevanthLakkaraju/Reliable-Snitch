@@ -31,8 +31,8 @@ export function Brand() {
       <span className="eye-mark">
         <i />
       </span>
-      <span>
-        third eye<span className="brand-caption">CIVIC OPERATIONS</span>
+      <span className="brand-name">
+        Reliable Snitch<span className="brand-caption">CIVIC OPERATIONS</span>
       </span>
     </Link>
   );
@@ -78,7 +78,16 @@ export function Shell({
           aria-label="Close navigation"
         />
       )}
-      <aside className={"sidebar " + (menu ? "mobile-open" : "")}>
+      <aside
+        className={"sidebar " + (menu ? "mobile-open" : "")}
+        onClick={(event) => {
+          if (event.target instanceof Element && event.target.closest("a"))
+            setMenu(false);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") setMenu(false);
+        }}
+      >
         <Brand />
         <button
           className="icon-button mobile-close"
@@ -128,7 +137,7 @@ export function Shell({
             someone paying attention.
           </p>
           <div className="operator">
-            <span className="avatar">TE</span>
+            <span className="avatar">RS</span>
             <div>
               Demo operations team<small>Workspace operator</small>
             </div>
@@ -169,13 +178,13 @@ export function Shell({
             <span className="workspace-pill">
               <span className="live-dot" /> Ideathon prototype
             </span>
-            <span className="avatar small">TE</span>
+            <span className="avatar small">RS</span>
           </div>
         </header>
         <main className="main-content" id="main">
           {children}
           <footer className="page-footer">
-            THIRD EYE <span>Spot it. Report it. Resolve it.</span>
+            RELIABLE SNITCH <span>Spot it. Report it. Resolve it.</span>
           </footer>
         </main>
       </div>

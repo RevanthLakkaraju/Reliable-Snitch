@@ -67,7 +67,7 @@ export async function parseBody(
 export function apiError(error: unknown) {
   if (error instanceof HttpError)
     return json({ error: error.message }, error.status);
-  console.error("Third Eye request failed", error);
+  console.error("Reliable Snitch request failed", error);
   return json(
     {
       error:

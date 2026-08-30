@@ -16,17 +16,17 @@ const geistMono = Geist_Mono({
 });
 
 const baseMetadata: Metadata = {
-  title: "Third Eye — Civic Disruption Management",
+  title: "Reliable Snitch — Civic Disruption Management",
   description:
     "Spot it. Report it. Resolve it. A shared workspace for citizen reports and transparent civic action.",
   openGraph: {
-    title: "Third Eye",
+    title: "Reliable Snitch",
     description: "Spot it. Report it. Resolve it.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Third Eye",
+    title: "Reliable Snitch",
     description: "Spot it. Report it. Resolve it.",
   },
 };
@@ -36,9 +36,9 @@ export function generateMetadata(): Metadata {
     ? [
         {
           url: new URL("/og.png", origin).href,
-          width: 1672,
-          height: 941,
-          alt: "Third Eye — Spot it. Report it. Resolve it.",
+          width: 1731,
+          height: 909,
+          alt: "Reliable Snitch — Spot it. Report it. Resolve it.",
         },
       ]
     : [];

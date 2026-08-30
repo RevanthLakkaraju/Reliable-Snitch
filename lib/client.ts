@@ -32,9 +32,7 @@ export async function preparePhoto(file: File): Promise<File> {
     );
   if (file.size > 20 * 1024 * 1024)
     throw new Error("Choose an image below 20 MB.");
-  const bitmap = await createImageBitmap(file).catch(() => {
-    throw new Error("This image could not be opened. Try another photo.");
-  });
+  const bitmap = await decodePhoto(file);
   const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
@@ -60,6 +58,33 @@ export async function preparePhoto(file: File): Promise<File> {
   );
   // Re-encoding also removes original EXIF metadata, including photo GPS.
   return new File([blob], "report-photo.jpg", { type: "image/jpeg" });
+}
+async function decodePhoto(
+  file: File,
+): Promise<
+  { width: number; height: number; close: () => void } & CanvasImageSource
+> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      return await createImageBitmap(file);
+    } catch {
+      /* Try the browser image decoder too. */
+    }
+  }
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () =>
+        reject(new Error("This image could not be opened. Try another photo."));
+      image.src = url;
+    });
+    return Object.assign(image, { close: () => URL.revokeObjectURL(url) });
+  } catch (error) {
+    URL.revokeObjectURL(url);
+    throw error;
+  }
 }
 export async function uploadPhoto(file: File) {
   const form = new FormData();

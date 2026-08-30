@@ -36,6 +36,7 @@ import {
 import { preparePhoto, requestJson, uploadPhoto } from "@/lib/client";
 import { CitizenHeader, Spinner } from "../components/ui";
 import CityMap from "../components/city-map";
+import CameraCapture from "../components/camera-capture";
 export default function ReportForm() {
   const [description, setDescription] = useState(""),
     [locationText, setLocationText] = useState(""),
@@ -48,6 +49,7 @@ export default function ReportForm() {
     [file, setFile] = useState<File | null>(null),
     [preview, setPreview] = useState(""),
     [photoBusy, setPhotoBusy] = useState(false),
+    [cameraOpen, setCameraOpen] = useState(false),
     [gpsBusy, setGpsBusy] = useState(false),
     [mapOpen, setMapOpen] = useState(false),
     [demoOpen, setDemoOpen] = useState(false),
@@ -60,6 +62,7 @@ export default function ReportForm() {
   const requestId = useRef(""),
     uploadedKey = useRef<string | null>(null),
     photoGeneration = useRef(0),
+    gpsGeneration = useRef(0),
     submitLock = useRef(false);
   useEffect(() => {
     requestId.current = crypto.randomUUID();
@@ -67,13 +70,19 @@ export default function ReportForm() {
   const previewRef = useRef("");
   useEffect(
     () => () => {
+      photoGeneration.current++;
+      gpsGeneration.current++;
       if (previewRef.current) URL.revokeObjectURL(previewRef.current);
     },
     [],
   );
   async function photo(event: ChangeEvent<HTMLInputElement>) {
     const chosen = event.target.files?.[0];
+    event.target.value = "";
     if (!chosen) return;
+    await acceptPhoto(chosen);
+  }
+  async function acceptPhoto(chosen: File) {
     const generation = ++photoGeneration.current;
     setPhotoBusy(true);
     setError("");
@@ -86,10 +95,10 @@ export default function ReportForm() {
       setPreview(previewRef.current);
       uploadedKey.current = null;
     } catch (e) {
-      setError((e as Error).message);
+      if (generation === photoGeneration.current)
+        setError((e as Error).message);
     } finally {
       if (generation === photoGeneration.current) setPhotoBusy(false);
-      event.target.value = "";
     }
   }
   function gps() {
@@ -107,8 +116,10 @@ export default function ReportForm() {
       return;
     }
     setGpsBusy(true);
+    const generation = ++gpsGeneration.current;
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (generation !== gpsGeneration.current) return;
         const p = {
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -122,6 +133,7 @@ export default function ReportForm() {
         setGpsBusy(false);
       },
       (err) => {
+        if (generation !== gpsGeneration.current) return;
         setGpsBusy(false);
         setError(
           err.code === 1
@@ -184,6 +196,8 @@ export default function ReportForm() {
     }
   }
   function sample(index: number) {
+    gpsGeneration.current++;
+    setGpsBusy(false);
     const loc = DEMO_LOCATIONS[index];
     setPoint({ latitude: loc.latitude, longitude: loc.longitude });
     setLocationText(loc.name);
@@ -192,6 +206,31 @@ export default function ReportForm() {
     setMapOpen(true);
     setConfirmed(false);
     setDemoOpen(false);
+  }
+  function resetReport() {
+    photoGeneration.current++;
+    gpsGeneration.current++;
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = "";
+    uploadedKey.current = null;
+    requestId.current = crypto.randomUUID();
+    setDescription("");
+    setLocationText("");
+    setPoint(null);
+    setAccuracy(null);
+    setSource("description");
+    setFile(null);
+    setPreview("");
+    setPhotoBusy(false);
+    setGpsBusy(false);
+    setCameraOpen(false);
+    setMapOpen(false);
+    setDemoOpen(false);
+    setConfirmed(false);
+    setError("");
+    setCopied(false);
+    setSuccess(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
   return (
     <div className="citizen-page">
@@ -234,9 +273,9 @@ export default function ReportForm() {
               Open operations <ArrowUpRight size={14} />
             </Link>
           </div>
-          <Link href="/report" className="text-link">
+          <button type="button" onClick={resetReport} className="text-link">
             Report another disruption
-          </Link>
+          </button>
         </main>
       ) : (
         <main className="report-layout">
@@ -357,19 +396,15 @@ export default function ReportForm() {
                     </strong>
                     <p>JPEG, PNG, or WebP · up to 20 MB before compression</p>
                     <div className="upload-actions">
-                      <label className="button primary">
+                      <button
+                        type="button"
+                        className="button primary"
+                        onClick={() => setCameraOpen(true)}
+                        disabled={photoBusy}
+                      >
                         <Camera size={14} />
                         Take photo
-                        <input
-                          className="file-input"
-                          type="file"
-                          accept="image/jpeg,image/png,image/webp"
-                          capture="environment"
-                          onChange={photo}
-                          disabled={photoBusy}
-                          aria-label="Take a report photo"
-                        />
-                      </label>
+                      </button>
                       <label className="button">
                         <Upload size={14} />
                         Upload photo
@@ -473,6 +508,8 @@ export default function ReportForm() {
                       className="text-link"
                       type="button"
                       onClick={() => {
+                        gpsGeneration.current++;
+                        setGpsBusy(false);
                         setPoint(null);
                         setAccuracy(null);
                         setSource("description");
@@ -488,6 +525,8 @@ export default function ReportForm() {
                     <CityMap
                       selected={point}
                       onPick={(p) => {
+                        gpsGeneration.current++;
+                        setGpsBusy(false);
                         setPoint(p);
                         setSource("manual");
                         setAccuracy(null);
@@ -567,11 +606,17 @@ export default function ReportForm() {
         </main>
       )}
       <footer className="citizen-footer">
-        <span>THIRD EYE · CIVIC DISRUPTION MANAGEMENT</span>
+        <span>RELIABLE SNITCH · CIVIC DISRUPTION MANAGEMENT</span>
         <Link href="/about">
           About this prototype <ArrowUpRight size={12} />
         </Link>
       </footer>
+      {cameraOpen && (
+        <CameraCapture
+          onCapture={(chosen) => void acceptPhoto(chosen)}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
     </div>
   );
 }

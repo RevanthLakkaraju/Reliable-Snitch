@@ -1,6 +1,6 @@
 import ReportForm from "./report-form";
 export const metadata = {
-  title: "Report a disruption — Third Eye",
+  title: "Report a disruption — Reliable Snitch",
   description:
     "A photo, your words, and a location. Help make the next step clear.",
 };

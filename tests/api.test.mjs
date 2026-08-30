@@ -47,6 +47,22 @@ test("all primary routes return successfully", async () => {
   ])
     assert.equal((await fetch(base + route)).status, 200, route);
 });
+test("CSV export downloads with the new brand and respects filters", async () => {
+  const response = await fetch(base + "/api/export?query=TE-1001");
+  assert.equal(response.status, 200);
+  assert.match(
+    response.headers.get("content-disposition"),
+    /attachment; filename="reliable-snitch-disruptions.csv"/,
+  );
+  assert.match(response.headers.get("content-type"), /text\/csv/);
+  const text = await response.text();
+  assert.match(text, /TE-1001/);
+  assert.doesNotMatch(text, /TE-1002/);
+  assert.doesNotMatch(
+    await (await fetch(base + "/api/export?query=TE-1001&demo=false")).text(),
+    /TE-1001/,
+  );
+});
 test("invalid request bodies and cross-site writes are rejected", async () => {
   assert.equal((await call("/api/reports", "POST", null)).status, 400);
   assert.equal((await call("/api/reports", "POST", {})).status, 400);

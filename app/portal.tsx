@@ -28,7 +28,6 @@ import {
   CATEGORIES,
   DEPARTMENTS,
   STATUSES,
-  dateLabel,
   relativeTime,
   type Report,
   type ReportEvent,
@@ -192,47 +191,16 @@ export default function Portal({ view = "overview" }: { view?: string }) {
     currentPage * pageSize,
   );
   function exportCsv() {
-    const columns = [
-      "Reference",
-      "Description",
-      "Category",
-      "Location",
-      "Status",
-      "Department",
-      "Priority",
-      "Created (IST)",
-      "Demo",
-    ];
-    const cell = (value: unknown) => {
-      let text = String(value ?? "");
-      if (/^[=+\-@\t\r]/.test(text)) text = "'" + text;
-      return '"' + text.replaceAll('"', '""') + '"';
-    };
-    const lines = [
-      columns,
-      ...filtered.map((r) => [
-        r.id,
-        r.description,
-        r.category,
-        r.locationText,
-        r.status,
-        r.department,
-        r.priority,
-        dateLabel(r.createdAt),
-        r.isDemo ? "Yes" : "No",
-      ]),
-    ];
-    const blob = new Blob(
-      ["\ufeff" + lines.map((line) => line.map(cell).join(",")).join("\r\n")],
-      { type: "text/csv;charset=utf-8" },
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "third-eye-disruptions.csv";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setToast(`Exported ${filtered.length} filtered reports.`);
+    const params = new URLSearchParams({
+      query,
+      status: statusFilter,
+      category,
+      department,
+      demo: String(showDemo),
+    });
+    // A normal attachment response also works in browsers that block blob downloads.
+    window.location.assign("/api/export?" + params.toString());
+    setToast(`Downloading ${filtered.length} filtered reports.`);
   }
   const table = (
     <>
@@ -925,8 +893,8 @@ export default function Portal({ view = "overview" }: { view?: string }) {
               </h2>
               <p>
                 When reports are scattered across messages, spreadsheets, and
-                phone calls, ownership and progress can become unclear. Third
-                Eye brings the report, the responsible department, and every
+                phone calls, ownership and progress can become unclear. Reliable
+                Snitch brings the report, the responsible department, and every
                 update into one shared workflow.
               </p>
               <Link href="/report" className="button light">
