@@ -1,0 +1,173 @@
+/* Keep secondary labels readable on the light surfaces. */
+:root {
+  --muted: #65715e;
+}
+.main-content
+  :is(
+    .field-hint,
+    .chart-note,
+    .reported-time,
+    .department-text,
+    .table-footer,
+    .sync-note,
+    .page-footer,
+    .map-context,
+    .map-toolbar > span,
+    .activity-card p,
+    .activity-card small,
+    .stat-card small,
+    .department-card > p,
+    .department-numbers span,
+    .department-mini-list,
+    .kanban-reference,
+    .kanban-card small,
+    .kanban-empty,
+    .prose p,
+    .prose li,
+    .safety-note,
+    .empty-state p,
+    .context-panel > small,
+    .impact-lines p,
+    .timeline-item p,
+    .timeline-item small,
+    .timeline-title time,
+    .description-text,
+    .check-label,
+    .detail-subline,
+    .detail-reference
+  ) {
+  color: #647257;
+}
+.main-content
+  :is(
+    .reports-table th,
+    .report-title-button small,
+    .report-title-button em,
+    .status-tabs button,
+    .search-box,
+    .filter-row select,
+    .map-toolbar select,
+    .map-legend
+  ) {
+  color: #65745a;
+}
+.reports-table th {
+  font-size: 9px;
+}
+.report-title-button strong {
+  font-size: 12px;
+}
+.report-title-button small {
+  font-size: 9px;
+}
+.department-text,
+.reported-time {
+  font-size: 10px;
+}
+.reports-table .status {
+  font-size: 10px;
+}
+.status-tabs button {
+  font-size: 11px;
+}
+.search-box input,
+.filter-row select {
+  font-size: 11px;
+}
+.report-title-button small {
+  max-width: 270px;
+}
+.citizen-page
+  :is(
+    .report-intro > p,
+    .report-steps p,
+    .intro-note,
+    .field-hint,
+    .form-demo-note,
+    .field-heading small,
+    .upload-zone > p,
+    .textarea-footer,
+    .coordinates,
+    .demo-locations > .text-link,
+    .check-label,
+    .submit-note,
+    .citizen-footer,
+    .success-layout > p,
+    .success-summary p,
+    .reference-card > span,
+    .tracker-intro p,
+    .tracker-empty p,
+    .tracking-location,
+    .tracking-description p,
+    .tracking-description small,
+    .tracking-owner small,
+    .tracker-bottom,
+    .map-context,
+    .timeline-item p,
+    .timeline-item small,
+    .timeline-title time
+  ) {
+  color: #66765a;
+}
+.citizen-page
+  :is(
+    .form-label,
+    .report-steps h3,
+    .upload-zone > strong,
+    .tracking-owner strong,
+    .tracking-description h3,
+    .timeline-title strong
+  ) {
+  color: #526d3d;
+}
+.citizen-page :is(input, textarea)::placeholder,
+.search-box input::placeholder {
+  color: #6f7c64;
+}
+.field-hint {
+  font-size: 11px;
+}
+.form-demo-note,
+.submit-note,
+.check-label {
+  font-size: 11px;
+}
+.citizen-header nav {
+  color: #5f7250;
+}
+.citizen-footer {
+  font-size: 9px;
+}
+.resolution-upload {
+  margin-top: 16px;
+}
+.resolution-upload input[type="file"] {
+  font-size: 11px;
+  padding: 9px;
+  background: #f7f9f1;
+  border: 1px solid #dfe7d3;
+  border-radius: 6px;
+}
+.resolution-upload .muted {
+  font-size: 10px;
+}
+@media (max-width: 720px) {
+  .report-title-button strong {
+    font-size: 11px;
+  }
+  .reports-table .status {
+    font-size: 9px;
+  }
+  .status-tabs button {
+    font-size: 10px;
+  }
+  .field-hint,
+  .form-demo-note,
+  .submit-note,
+  .check-label {
+    font-size: 10px;
+  }
+  .citizen-footer {
+    font-size: 8px;
+  }
+}

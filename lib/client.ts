@@ -1,0 +1,73 @@
+export async function requestJson<T>(
+  url: string,
+  options?: RequestInit,
+): Promise<T> {
+  const response = await fetch(url, { ...options, cache: "no-store" });
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "The server could not respond. Check your connection and try again.",
+    );
+  }
+  if (!response.ok)
+    throw new Error(
+      data &&
+        typeof data === "object" &&
+        "error" in data &&
+        typeof data.error === "string"
+        ? data.error
+        : "The request could not be completed.",
+    );
+  return data as T;
+}
+export function imageUrl(key: string) {
+  return "/api/image?key=" + encodeURIComponent(key);
+}
+export async function preparePhoto(file: File): Promise<File> {
+  if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
+    throw new Error(
+      "Choose a JPEG, PNG, or WebP image. Convert HEIC photos to JPEG first.",
+    );
+  if (file.size > 20 * 1024 * 1024)
+    throw new Error("Choose an image below 20 MB.");
+  const bitmap = await createImageBitmap(file).catch(() => {
+    throw new Error("This image could not be opened. Try another photo.");
+  });
+  const ratio = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(bitmap.width * ratio));
+  canvas.height = Math.max(1, Math.round(bitmap.height * ratio));
+  const context = canvas.getContext("2d");
+  if (!context) {
+    bitmap.close();
+    throw new Error("Image preparation is unavailable in this browser.");
+  }
+  context.fillStyle = "#fff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob(
+      (blob) =>
+        blob
+          ? resolve(blob)
+          : reject(new Error("Could not prepare the image.")),
+      "image/jpeg",
+      0.85,
+    ),
+  );
+  // Re-encoding also removes original EXIF metadata, including photo GPS.
+  return new File([blob], "report-photo.jpg", { type: "image/jpeg" });
+}
+export async function uploadPhoto(file: File) {
+  const form = new FormData();
+  form.append("photo", file);
+  return (
+    await requestJson<{ key: string }>("/api/uploads", {
+      method: "POST",
+      body: form,
+    })
+  ).key;
+}

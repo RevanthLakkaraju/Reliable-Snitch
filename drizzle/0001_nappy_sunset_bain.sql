@@ -1,0 +1,1 @@
+ALTER TABLE `report_events` ADD `photo_key` text;
