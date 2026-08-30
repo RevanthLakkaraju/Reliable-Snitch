@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { actor, apiError, json, database } from "@/lib/server";
 export async function GET(request: Request) {
   try {
-    actor(request);
+    await actor(request);
     const key = new URL(request.url).searchParams.get("key");
     if (!key || !/^reports\/[a-f0-9-]{36}\.(jpg|png|webp)$/.test(key))
       return json({ error: "Image not found." }, 404);

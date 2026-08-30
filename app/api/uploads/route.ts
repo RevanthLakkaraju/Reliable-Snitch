@@ -10,7 +10,7 @@ import {
 export async function POST(request: Request) {
   let key: string | undefined;
   try {
-    checkMutation(request);
+    await checkMutation(request);
     const length = Number(request.headers.get("content-length") ?? 0);
     if (length > 6 * 1024 * 1024)
       throw new HttpError(
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       .prepare(
         "INSERT INTO uploads (key,owner,content_type,size,created_at) VALUES (?,?,?,?,?)",
       )
-      .bind(key, actor(request), type, file.size, Date.now())
+      .bind(key, await actor(request), type, file.size, Date.now())
       .run();
     return json({ key }, 201);
   } catch (error) {

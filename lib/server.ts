@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { sessionActor } from "./demo-session";
 import {
   classify,
   deriveContext,
@@ -25,20 +26,22 @@ export class HttpError extends Error {
     super(message);
   }
 }
-export function actor(request: Request) {
-  const id = request.headers.get("oai-authenticated-user-id");
+export async function actor(request: Request) {
+  if (import.meta.env.DEV && !env.DEMO_SESSION_SECRET) return "local-demo-operator";
+  if (!env.DEMO_SESSION_SECRET || !env.DEMO_ACCESS_CODE_HASH)
+    throw new HttpError(503, "Team access is not configured yet.");
+  const id = await sessionActor(request.headers.get("cookie"), env.DEMO_SESSION_SECRET);
   if (id) return id;
-  if (import.meta.env.DEV) return "local-demo-operator";
   throw new HttpError(
     401,
-    "Sign in to this private demonstration workspace to continue.",
+    "Open your team invitation link to use this demonstration portal.",
   );
 }
-export function checkMutation(request: Request) {
+export async function checkMutation(request: Request) {
   const origin = request.headers.get("origin");
   if (origin && origin !== new URL(request.url).origin)
     throw new HttpError(403, "This request must come from the portal.");
-  actor(request);
+  await actor(request);
 }
 export function json(value: unknown, status = 200) {
   return Response.json(value, {

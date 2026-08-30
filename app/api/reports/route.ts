@@ -9,7 +9,7 @@ import {
 } from "@/lib/server";
 export async function GET(request: Request) {
   try {
-    actor(request);
+    await actor(request);
     return json({ reports: await listReports() });
   } catch (error) {
     return apiError(error);
@@ -17,9 +17,9 @@ export async function GET(request: Request) {
 }
 export async function POST(request: Request) {
   try {
-    checkMutation(request);
+    await checkMutation(request);
     return json(
-      { report: await createReport(await parseBody(request), actor(request)) },
+      { report: await createReport(await parseBody(request), await actor(request)) },
       201,
     );
   } catch (error) {

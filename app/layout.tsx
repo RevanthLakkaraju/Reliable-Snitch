@@ -4,6 +4,8 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./readability.css";
 import "./government.css";
+import "./team-access.css";
+import { TeamAccess } from "./team-access";
 import { siteOrigin } from "@/lib/site-metadata";
 
 const geistSans = Geist({
@@ -17,6 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 const baseMetadata: Metadata = {
+  referrer: "no-referrer",
+  robots: { index: false, follow: false },
   title: "Reliable Snitch — Civic Disruption Management",
   description:
     "Spot it. Report it. Resolve it. A shared workspace for citizen reports and transparent civic action.",
@@ -65,7 +69,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <TeamAccess>{children}</TeamAccess>
       </body>
     </html>
   );

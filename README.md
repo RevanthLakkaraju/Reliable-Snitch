@@ -2,7 +2,7 @@
 
 **Spot it. Report it. Resolve it.**
 
-A working, private ideathon prototype for civic disruption management. It is not connected to a municipality or emergency service.
+A working, invitation-protected ideathon prototype for civic disruption management. It is not connected to a municipality or emergency service.
 
 ## The product
 
@@ -21,7 +21,13 @@ Reports are persisted in D1. Uploaded images are stored in R2. The reporting, as
 
 Sample reports, facilities, municipal departments, and actions are illustrative. The category suggestion is a transparent keyword matcher, **not image AI**. Optional priority is assigned by staff; GPS does not determine urgency. The original photo and description remain available for human review.
 
-This deployment is owner-only. The same signed-in owner can demonstrate citizen and operator views on different devices. All authorised workspace users are demo operators. Public citizen/staff role separation, verified facility coverage, notifications, emergency dispatch, abuse controls, and a data-retention programme must be added before a real pilot. Do not change the site's access to public without designing those permissions.
+This is the deployment-only copy of the blue government-style portal at commit `329e5ef`. The original localhost project and dated backup are unchanged. All existing portal screens, stylesheets, camera/GPS/photo processing, and workflows are preserved.
+
+The hosted entry page is public, but every data, image, export, upload, and update API requires a signed team session. An invitation contains a cryptographically random 32-byte capability in its URL fragment (`#access=...`), which is removed before use and exchanged over HTTPS for a 24-hour HttpOnly, Secure, SameSite cookie. Only the SHA-256 hash of the invitation and an independent HMAC session key are stored as Sites runtime secrets. No account sign-in or installation is required. Public visitors without the invitation cannot load records, upload evidence, export data, or change statuses. A forged platform identity header is not accepted as team authorization.
+
+Anyone who receives the invitation is a full demo operator and may submit reports and edit the shared mock dashboard. Share it only with teammates and use non-sensitive demonstration content. This is a team demonstration, not an anonymous public municipal service. To revoke an invitation and all sessions, rotate both runtime secrets and redeploy. Keep invitation links out of public repositories, screenshots, and public posts.
+
+The hosted database contains the original 12 illustrative reports; localhost reports/photos are not copied. Verified facility coverage, individual staff/citizen roles for a real pilot, notifications, emergency dispatch, abuse controls, and a data-retention programme are still outside this prototype.
 
 ## Run locally
 
@@ -59,7 +65,7 @@ Tables are declared in `db/schema.ts`; deployment migrations are in `drizzle/`. 
 
 1. Open the citizen portal on a phone; upload a non-sensitive image and describe the issue.
 2. Choose a labelled demo location (or confirm a real location with permission), then submit.
-3. Copy the new reference and open Disruptions on a second device signed in as the owner.
+3. Copy the new reference and open Disruptions on a second device using the team invitation.
 4. Verify the report, assign a department, mark it In progress, then resolve it with a summary.
 5. Open the reference in Track a report to show the public history. Add a private note in operations to demonstrate that it is excluded from the citizen view.
 

@@ -1,0 +1,13 @@
+.team-access { min-height: 100vh; background: #f4f6f8; color: #243746; font-family: Arial, sans-serif; }
+.team-access-brand { padding-top: 22px; padding-bottom: 22px; }
+.team-access-card { max-width: 540px; margin: 64px auto; padding: 32px; background: #fff; border: 1px solid #cdd6df; border-top: 4px solid #163b61; border-radius: 4px; }
+.team-access-label { font-size: 11px; font-weight: 700; letter-spacing: .055em; color: #163b61; }
+.team-access-card h1 { margin: 14px 0; font-size: 28px; color: #163b61; }
+.team-access-card p { font-size: 14px; line-height: 1.65; }
+.team-access-card form { display: grid; gap: 12px; margin-top: 24px; }
+.team-access-card label { font-size: 14px; font-weight: 700; }
+.team-access-card input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #8899a9; border-radius: 3px; background: #fff; color: #243746; }
+.team-access-card input:focus-visible { outline: 3px solid #80b9eb; outline-offset: 2px; }
+.team-access-card .team-access-error { margin: 0; color: #a52222; }
+.team-access-card .team-access-note { margin-top: 24px; padding-top: 18px; border-top: 1px solid #d9e0e7; font-size: 12px; color: #536878; }
+@media (max-width: 600px) { .team-access-card { margin: 24px 16px; padding: 24px; } }

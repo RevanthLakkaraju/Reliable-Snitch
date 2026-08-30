@@ -3,6 +3,8 @@ export async function requestJson<T>(
   options?: RequestInit,
 ): Promise<T> {
   const response = await fetch(url, { ...options, cache: "no-store" });
+  if (response.status === 401 && typeof window !== "undefined")
+    window.dispatchEvent(new Event("reliable-snitch-access-expired"));
   let data: unknown;
   try {
     data = await response.json();

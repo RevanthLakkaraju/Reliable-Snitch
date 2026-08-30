@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    actor(request);
+    await actor(request);
     const { id } = await params;
     const report = await findReport(id);
     if (!report)
@@ -37,12 +37,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    checkMutation(request);
+    await checkMutation(request);
     const { id } = await params;
     const report = await updateReport(
       id,
       await parseBody(request),
-      actor(request),
+      await actor(request),
     );
     return json({ report, events: await reportEvents(id) });
   } catch (error) {

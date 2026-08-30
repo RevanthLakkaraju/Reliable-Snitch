@@ -4,7 +4,7 @@ import { renderCsv } from "@/lib/csv";
 
 export async function GET(request: Request) {
   try {
-    actor(request);
+    await actor(request);
     const params = new URL(request.url).searchParams;
     const query = (params.get("query") ?? "").toLowerCase();
     const status = params.get("status") ?? "All reports";
