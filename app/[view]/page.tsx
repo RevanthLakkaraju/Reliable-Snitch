@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Portal from "../portal";
+import AboutInformation from "../about-information";
 const views = ["disruptions", "map", "departments", "activity", "about"];
 export async function generateMetadata({
   params,
@@ -18,5 +19,6 @@ export default async function ViewPage({
 }) {
   const { view } = await params;
   if (!views.includes(view)) notFound();
+  if (view === "about") return <AboutInformation />;
   return <Portal view={view} />;
 }

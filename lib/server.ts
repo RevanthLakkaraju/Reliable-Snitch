@@ -1,9 +1,10 @@
 import { env } from "cloudflare:workers";
-import { sessionActor } from "./demo-session";
+import { currentUser, sameOrigin } from "./auth";
+import { upgradeSchema } from "./upgrade-schema";
+import { validateCivicInput, COORDINATION } from "./civic";
 import {
   classify,
   deriveContext,
-  titleFromDescription,
   validateReport,
   validateTransition,
   STATUSES,
@@ -27,20 +28,10 @@ export class HttpError extends Error {
   }
 }
 export async function actor(request: Request) {
-  if (import.meta.env.DEV && !env.DEMO_SESSION_SECRET) return "local-demo-operator";
-  if (!env.DEMO_SESSION_SECRET || !env.DEMO_ACCESS_CODE_HASH)
-    throw new HttpError(503, "Team access is not configured yet.");
-  const id = await sessionActor(request.headers.get("cookie"), env.DEMO_SESSION_SECRET);
-  if (id) return id;
-  throw new HttpError(
-    401,
-    "Open your team invitation link to use this demonstration portal.",
-  );
+  return (await currentUser(request)).id;
 }
 export async function checkMutation(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin)
-    throw new HttpError(403, "This request must come from the portal.");
+  sameOrigin(request);
   await actor(request);
 }
 export function json(value: unknown, status = 200) {
@@ -57,9 +48,31 @@ export async function parseBody(
 ): Promise<Record<string, unknown>> {
   if (Number(request.headers.get("content-length") ?? 0) > 16000)
     throw new HttpError(413, "This request is too large.");
+  if (!request.headers.get("content-type")?.startsWith("application/json"))
+    throw new HttpError(415, "A JSON request is required.");
+  const reader = request.body?.getReader();
+  if (!reader) throw new HttpError(400, "The request body is missing.");
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > 16000) {
+      await reader.cancel();
+      throw new HttpError(413, "This request is too large.");
+    }
+    parts.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new HttpError(400, "Invalid request body.");
   }
@@ -109,7 +122,12 @@ export async function database() {
       await env.DB.prepare(
         "ALTER TABLE report_events ADD COLUMN photo_key TEXT",
       ).run();
+    await env.DB.batch(upgradeSchema.map((sql) => env.DB.prepare(sql)));
     await seed();
+    await seedUpgrade();
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO complaint_registry (report_id,ward,due_at,photo_approved) SELECT id,CASE WHEN is_demo=1 THEN 'Demo Ward 01 · Bengaluru' ELSE 'Unverified locality' END,created_at+259200000,CASE WHEN is_demo=1 THEN 1 ELSE 0 END FROM reports`,
+    ).run();
     schemaReady = true;
   }
   return env.DB;
@@ -162,10 +180,19 @@ export async function createReport(
   }
   const db = await database();
   const existing = await db
-    .prepare("SELECT id FROM reports WHERE request_id=?")
+    .prepare(
+      "SELECT r.id,g.owner_id AS owner FROM reports r LEFT JOIN complaint_registry g ON g.report_id=r.id WHERE r.request_id=?",
+    )
     .bind(data.requestId)
-    .first<{ id: string }>();
-  if (existing) return findReport(existing.id);
+    .first<{ id: string; owner: string | null }>();
+  if (existing) {
+    if (existing.owner !== owner)
+      throw new HttpError(
+        409,
+        "Submission identifier already used. Reload the form.",
+      );
+    return findReport(existing.id);
+  }
   if (data.photoKey) {
     const upload = await db
       .prepare("SELECT owner FROM uploads WHERE key=?")
@@ -180,7 +207,22 @@ export async function createReport(
   const id =
     "TE-" + crypto.randomUUID().replaceAll("-", "").slice(0, 10).toUpperCase();
   const now = Date.now();
-  const category = classify(data.description);
+  const suggested = classify(data.description);
+  const category =
+    body.category && CATEGORIES.includes(body.category as Category)
+      ? (body.category as Category)
+      : suggested;
+  if (suggested === "Internet & mobile network" && category !== suggested)
+    throw new HttpError(
+      400,
+      "For a network complaint, select Internet & mobile network and your provider.",
+    );
+  let civic;
+  try {
+    civic = validateCivicInput(body, category);
+  } catch (error) {
+    throw new HttpError(400, (error as Error).message);
+  }
   const context = deriveContext(
     data.description,
     data.latitude,
@@ -196,7 +238,7 @@ export async function createReport(
         .bind(
           id,
           data.requestId,
-          titleFromDescription(data.description),
+          civic.title,
           data.description,
           category,
           data.locationText,
@@ -212,6 +254,18 @@ export async function createReport(
         ),
       db
         .prepare(
+          `INSERT INTO complaint_registry (report_id,owner_id,ward,provider,due_at,coordination,photo_approved) VALUES (?,?,?,?,?,?,0)`,
+        )
+        .bind(
+          id,
+          owner,
+          civic.ward,
+          civic.provider,
+          now + 72 * 3600000,
+          civic.provider ? "Not yet contacted" : "Not required",
+        ),
+      db
+        .prepare(
           `INSERT INTO report_events (id,report_id,kind,note,actor,visibility,created_at) VALUES (?,?, 'Report received',?,'Citizen','public',?)`,
         )
         .bind(
@@ -223,10 +277,12 @@ export async function createReport(
     ]);
   } catch (error) {
     const saved = await db
-      .prepare("SELECT id FROM reports WHERE request_id=?")
+      .prepare(
+        "SELECT r.id,g.owner_id AS owner FROM reports r LEFT JOIN complaint_registry g ON g.report_id=r.id WHERE r.request_id=?",
+      )
       .bind(data.requestId)
-      .first<{ id: string }>();
-    if (saved) return findReport(saved.id);
+      .first<{ id: string; owner: string | null }>();
+    if (saved && saved.owner === owner) return findReport(saved.id);
     throw error;
   }
   return findReport(id);
@@ -238,6 +294,13 @@ export async function updateReport(
 ) {
   const report = await findReport(id);
   if (!report) throw new HttpError(404, "Report not found.");
+  const db = await database();
+  const registry = await db
+    .prepare("SELECT * FROM complaint_registry WHERE report_id=?")
+    .bind(id)
+    .first<Record<string, unknown>>();
+  if (!registry)
+    throw new HttpError(404, "Complaint register entry not found.");
   if (!Number.isInteger(body.revision) || body.revision !== report.revision)
     throw new HttpError(
       409,
@@ -258,6 +321,106 @@ export async function updateReport(
       "Choose a valid status, category, priority, and department.",
     );
   const note = typeof body.note === "string" ? body.note.trim() : "";
+  const field = (key: string, column: string, max: number) => {
+    const value =
+      body[key] === undefined ? String(registry[column] ?? "") : body[key];
+    if (typeof value !== "string" || value.trim().length > max)
+      throw new HttpError(400, `Invalid ${key}.`);
+    return value.trim();
+  };
+  const assignee = field("assignee", "assignee", 80),
+    ward = field("ward", "ward", 120),
+    providerTicket = field("providerTicket", "provider_ticket", 100),
+    coordination = field("coordination", "coordination", 80),
+    clarification = field("clarification", "clarification", 1500);
+  const dueAt =
+    body.dueAt === undefined ? (registry.due_at as number | null) : body.dueAt;
+  if (
+    dueAt !== null &&
+    (typeof dueAt !== "number" ||
+      !Number.isFinite(dueAt) ||
+      dueAt < 0 ||
+      dueAt > Date.now() + 366 * 86400000)
+  )
+    throw new HttpError(
+      400,
+      "Choose a valid target date within the next year.",
+    );
+  if (!COORDINATION.includes(coordination))
+    throw new HttpError(400, "Select a valid provider coordination stage.");
+  if (!registry.provider && coordination !== "Not required")
+    throw new HttpError(
+      400,
+      "This complaint has no selected network service provider.",
+    );
+  if (category === "Internet & mobile network" && !registry.provider)
+    throw new HttpError(
+      400,
+      "A network complaint must have a provider selected by its reporter. Request clarification rather than assigning an unknown provider.",
+    );
+  if (registry.provider && coordination === "Not required")
+    throw new HttpError(
+      400,
+      "Keep a coordination stage for this service-provider complaint.",
+    );
+  if (body.escalated !== undefined && typeof body.escalated !== "boolean")
+    throw new HttpError(400, "Choose a valid escalation state.");
+  const escalated =
+    body.escalated === undefined
+      ? Number(registry.escalated)
+      : body.escalated
+        ? 1
+        : 0;
+  const metadataChanged =
+    assignee !== registry.assignee ||
+    ward !== registry.ward ||
+    dueAt !== registry.due_at ||
+    providerTicket !== registry.provider_ticket ||
+    coordination !== registry.coordination ||
+    clarification !== registry.clarification ||
+    escalated !== registry.escalated;
+  if (
+    department !== report.department &&
+    report.department !== "Unassigned" &&
+    note.length < 12
+  )
+    throw new HttpError(
+      400,
+      "Record a transfer reason of at least 12 characters.",
+    );
+  if (metadataChanged && note.length < 12)
+    throw new HttpError(
+      400,
+      "Add an action-taken note of at least 12 characters for the register changes.",
+    );
+  if (clarification && ["Resolved", "Closed"].includes(status))
+    throw new HttpError(
+      400,
+      "Clear the clarification request before resolving the complaint.",
+    );
+  let contributedPhoto: string | null = null;
+  const review = body.photoReview;
+  if (review) {
+    if (
+      !["approve", "reject"].includes(String(review)) ||
+      typeof body.pendingPhotoId !== "string"
+    )
+      throw new HttpError(400, "Choose a valid photo review action.");
+    const pending = await db
+      .prepare(
+        "SELECT photo_key AS photoKey FROM complaint_photos WHERE id=? AND report_id=? AND status='pending'",
+      )
+      .bind(body.pendingPhotoId, id)
+      .first<{ photoKey: string }>();
+    if (!pending || (review === "approve" && report.photoKey))
+      throw new HttpError(
+        409,
+        "This photograph was already reviewed or a photo is now attached.",
+      );
+    if (review === "approve") contributedPhoto = pending.photoKey;
+  }
+  const approveOriginal =
+    body.approvePhoto === true && !!report.photoKey && !registry.photo_approved;
   if (note.length > 2000)
     throw new HttpError(400, "Keep the update below 2,000 characters.");
   try {
@@ -278,16 +441,40 @@ export async function updateReport(
     category !== report.category ||
     priority !== report.priority ||
     department !== report.department;
-  if (!changed && !note)
+  if (!changed && !note && !metadataChanged && !review && !approveOriginal)
     throw new HttpError(400, "Change a field or add an update before saving.");
   const changes = [
     status !== report.status ? `${report.status} → ${status}` : "",
     department !== report.department ? `Department: ${department}` : "",
     category !== report.category ? `Category confirmed: ${category}` : "",
     priority !== report.priority ? `Staff priority: ${priority}` : "",
+    assignee !== registry.assignee ? "Responsible official updated." : "",
+    ward !== registry.ward ? `Locality / ward: ${ward}` : "",
+    dueAt !== registry.due_at
+      ? `Response target: ${dueAt ? new Date(dueAt).toISOString() : "Not set"} (demo target)`
+      : "",
+    coordination !== registry.coordination
+      ? `Provider coordination: ${coordination}`
+      : "",
+    providerTicket !== registry.provider_ticket
+      ? `Provider reference: ${providerTicket || "Not set"}`
+      : "",
+    clarification !== registry.clarification
+      ? `Clarification: ${clarification || "Completed"}`
+      : "",
+    escalated !== registry.escalated
+      ? escalated
+        ? "Escalated for supervisory review."
+        : "Escalation cleared."
+      : "",
+    review
+      ? `Citizen-contributed photograph ${review === "approve" ? "approved" : "not approved"}.`
+      : "",
+    approveOriginal
+      ? "Complaint photograph approved for the locality map."
+      : "",
   ].filter(Boolean);
   const now = Date.now(),
-    db = await database(),
     eventId = crypto.randomUUID();
   const photoKey =
     typeof body.resolutionPhotoKey === "string"
@@ -317,9 +504,9 @@ export async function updateReport(
   const kind =
     status !== report.status && status === "Resolved"
       ? "Resolution recorded"
-      : report.status === "Resolved" && status !== report.status
+      : ["Resolved", "Closed"].includes(report.status) && status === "Verified"
         ? "Report reopened"
-        : changed
+        : changed || metadataChanged || review || approveOriginal
           ? "Workflow updated"
           : "Note added";
   const publicNote =
@@ -328,20 +515,37 @@ export async function updateReport(
   const statements = [
     db
       .prepare(
-        `INSERT INTO report_events (id,report_id,kind,note,actor,visibility,created_at,photo_key) SELECT ?,id,?,?,'Operations team',?,?,? FROM reports WHERE id=? AND revision=?`,
+        `INSERT INTO report_events (id,report_id,kind,note,actor,visibility,created_at,photo_key) SELECT ?,id,?,?,coalesce((SELECT name || ' (' || username || ')' FROM portal_users WHERE id=?),'Operations team'),?,?,? FROM reports WHERE id=? AND revision=?`,
       )
       .bind(
         eventId,
         kind,
-        !changed && privateNote ? note : publicNote,
-        !changed && privateNote ? "internal" : "public",
+        !changed &&
+          !metadataChanged &&
+          !review &&
+          !approveOriginal &&
+          privateNote
+          ? note
+          : publicNote,
+        owner,
+        !changed &&
+          !metadataChanged &&
+          !review &&
+          !approveOriginal &&
+          privateNote
+          ? "internal"
+          : "public",
         now,
         photoKey,
         id,
         report.revision,
       ),
   ];
-  if (changed && privateNote && note)
+  if (
+    (changed || metadataChanged || review || approveOriginal) &&
+    privateNote &&
+    note
+  )
     statements.push(
       db
         .prepare(
@@ -352,7 +556,39 @@ export async function updateReport(
   statements.push(
     db
       .prepare(
-        `UPDATE reports SET status=?,category=?,priority=?,department=?,updated_at=?,resolved_at=?,revision=revision+1 WHERE id=? AND revision=?`,
+        `UPDATE complaint_registry SET ward=?,assignee=?,due_at=?,provider_ticket=?,coordination=?,clarification=?,escalated=?,photo_approved=CASE WHEN ?=1 THEN 1 ELSE photo_approved END WHERE report_id=? AND EXISTS(SELECT 1 FROM report_events WHERE id=?)`,
+      )
+      .bind(
+        ward,
+        assignee,
+        dueAt,
+        providerTicket,
+        coordination,
+        clarification,
+        escalated,
+        approveOriginal || contributedPhoto ? 1 : 0,
+        id,
+        eventId,
+      ),
+  );
+  if (review)
+    statements.push(
+      db
+        .prepare(
+          `UPDATE complaint_photos SET status=?,reviewed_at=? WHERE id=? AND report_id=? AND status='pending' AND EXISTS(SELECT 1 FROM report_events WHERE id=?)`,
+        )
+        .bind(
+          review === "approve" ? "approved" : "rejected",
+          now,
+          body.pendingPhotoId,
+          id,
+          eventId,
+        ),
+    );
+  statements.push(
+    db
+      .prepare(
+        `UPDATE reports SET status=?,category=?,priority=?,department=?,updated_at=?,resolved_at=?,photo_key=coalesce(?,photo_key),revision=revision+1 WHERE id=? AND revision=?`,
       )
       .bind(
         status,
@@ -360,7 +596,10 @@ export async function updateReport(
         priority,
         department,
         now,
-        status === "Resolved" ? (report.resolvedAt ?? now) : null,
+        ["Resolved", "Closed"].includes(status)
+          ? (report.resolvedAt ?? now)
+          : null,
+        contributedPhoto,
         id,
         report.revision,
       ),
@@ -583,6 +822,108 @@ async function seed() {
           updated,
         ),
       );
+  }
+  await env.DB.batch(statements);
+}
+async function seedUpgrade() {
+  const now = Date.now();
+  const rows = [
+    {
+      id: "TE-1013",
+      title: "Broadband disruption around Market Road",
+      description:
+        "Illustrative network complaint: several homes report intermittent broadband. This is a fictional scenario, not a verified provider outage.",
+      provider: "Airtel",
+      status: "Assigned",
+      hours: 95,
+      coordination: "Awaiting provider response",
+      ticket: "DEMO-NET-1013",
+      clarification: "",
+      escalated: 1,
+    },
+    {
+      id: "TE-1014",
+      title: "Weak mobile signal near the bus stop",
+      description:
+        "Demonstration only: mobile calls keep dropping near the bus stop. Please coordinate a coverage check; no real provider has been contacted.",
+      provider: "Jio",
+      status: "In progress",
+      hours: 20,
+      coordination: "Provider action in progress",
+      ticket: "DEMO-NET-1014",
+      clarification: "",
+      escalated: 0,
+    },
+    {
+      id: "TE-1015",
+      title: "Internet unavailable along School Lane",
+      description:
+        "Fictional demonstration of an internet service complaint. The affected stretch and times need clarification before provider coordination.",
+      provider: "BSNL",
+      status: "Reported",
+      hours: 5,
+      coordination: "Not yet contacted",
+      ticket: "",
+      clarification:
+        "Please identify the affected stretch and the time the disruption began.",
+      escalated: 0,
+    },
+    {
+      id: "TE-1016",
+      title: "Local fibre line service interruption",
+      description:
+        "Illustrative complaint for an independent fibre service provider. The municipality records the provider reference and follows up manually.",
+      provider: "Demo Local Fibre",
+      status: "Verified",
+      hours: 8,
+      coordination: "Not yet contacted",
+      ticket: "",
+      clarification: "",
+      escalated: 0,
+    },
+  ];
+  const statements = [];
+  for (const [index, r] of rows.entries()) {
+    const time = now - r.hours * 3600000,
+      lat = 12.9716 + index * 0.001,
+      lng = 77.5946 + index * 0.001;
+    statements.push(
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO reports (id,request_id,title,description,category,status,priority,department,location_text,latitude,longitude,accuracy,location_source,photo_key,is_demo,created_at,updated_at,resolved_at,revision,context) VALUES (?,?,?,?,'Internet & mobile network',?,'Medium','Telecom Coordination',?,?,?,NULL,'demo',NULL,1,?,?,NULL,0,?)`,
+      ).bind(
+        r.id,
+        "demo-upgrade-" + r.id,
+        r.title,
+        r.description,
+        r.status,
+        index === 2
+          ? "School Lane · Demo Bengaluru"
+          : "Market Road · Demo Bengaluru",
+        lat,
+        lng,
+        time,
+        time,
+        JSON.stringify(deriveContext(r.description, lat, lng, "demo")),
+      ),
+    );
+    statements.push(
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO complaint_registry (report_id,ward,provider,assignee,due_at,provider_ticket,coordination,clarification,escalated,photo_approved) VALUES (?,'Demo Ward 01 · Bengaluru',?,'Demo telecom desk',?,?,?,?,?,1)`,
+      ).bind(
+        r.id,
+        r.provider,
+        time + 72 * 3600000,
+        r.ticket,
+        r.coordination,
+        r.clarification,
+        r.escalated,
+      ),
+    );
+    statements.push(
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO report_events (id,report_id,kind,note,actor,visibility,created_at) VALUES (?,?,'Demonstration case registered','Fictional provider coordination example. No actual provider contact occurred.','Demo municipal desk','public',?)`,
+      ).bind("seed-upgrade-" + r.id, r.id, time),
+    );
   }
   await env.DB.batch(statements);
 }

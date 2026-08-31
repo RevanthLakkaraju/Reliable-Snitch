@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup } from "leaflet";
 import { DEMO_FACILITIES, type Report } from "@/lib/domain";
+import { imageUrl } from "@/lib/client";
 type Point = { latitude: number; longitude: number };
 export default function CityMap({
   reports = [],
@@ -77,14 +78,13 @@ export default function CityMap({
         if (r.latitude === null || r.longitude === null) continue;
         const coords: [number, number] = [r.latitude, r.longitude];
         points.push(coords);
-        const color =
-          r.status === "Resolved"
-            ? "#679451"
-            : r.status === "In progress"
-              ? "#d09435"
-              : r.status === "Reported"
-                ? "#527b9b"
-                : "#718069";
+        const color = ["Resolved", "Closed"].includes(r.status)
+          ? "#679451"
+          : r.status === "In progress"
+            ? "#d09435"
+            : r.status === "Reported"
+              ? "#527b9b"
+              : "#718069";
         const icon = L.divIcon({
           className: "report-map-marker",
           html: `<span style="background:${color}"></span>`,
@@ -101,6 +101,25 @@ export default function CityMap({
         const title = document.createElement("strong");
         title.textContent = r.title;
         popup.appendChild(title);
+        const photo = r.photoKey ? imageUrl(r.photoKey) : r.demoPhoto;
+        if (photo) {
+          const image = document.createElement("img");
+          image.src = photo;
+          image.alt = r.isDemo ? "Illustrative Indian street photo" : r.title;
+          image.width = 180;
+          image.style.maxHeight = "110px";
+          image.style.objectFit = "cover";
+          popup.appendChild(image);
+          if (r.demoPhoto) {
+            const credit = document.createElement("a");
+            credit.href = "/about#photo-credits";
+            credit.textContent =
+              "Illustrative photo · not incident evidence · credits";
+            credit.style.display = "block";
+            credit.style.fontSize = "10px";
+            popup.appendChild(credit);
+          }
+        }
         const line = document.createElement("p");
         line.textContent = `${r.id} · ${r.status}${r.isDemo ? " · Demo" : ""}`;
         popup.appendChild(line);

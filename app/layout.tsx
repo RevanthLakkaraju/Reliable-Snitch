@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import "./readability.css";
 import "./government.css";
 import "./team-access.css";
+import "./upgrade.css";
 import { TeamAccess } from "./team-access";
 import { siteOrigin } from "@/lib/site-metadata";
 

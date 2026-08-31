@@ -23,6 +23,7 @@ import {
   Trash2,
   Droplets,
   Trees,
+  Wifi,
 } from "lucide-react";
 import {
   CATEGORIES,
@@ -91,6 +92,25 @@ export default function Portal({ view = "overview" }: { view?: string }) {
     [toast, setToast] = useState(""),
     [refreshed, setRefreshed] = useState<number | null>(null);
   const sequence = useRef(0);
+  const [queue, setQueue] = useState("All work");
+  const matchesQueue = useCallback(
+    (r: Report, q: string) =>
+      q === "All work" ||
+      (q === "New / unassigned" && r.department === "Unassigned") ||
+      (q === "Awaiting provider" &&
+        ["Forwarded to provider", "Awaiting provider response"].includes(
+          r.coordination ?? "",
+        )) ||
+      (q === "Clarification requested" && !!r.clarification) ||
+      (q === "Overdue" &&
+        !!r.dueAt &&
+        r.dueAt < (refreshed ?? 0) &&
+        !["Resolved", "Closed"].includes(r.status)) ||
+      (q === "Escalated" && !!r.escalated) ||
+      (q === "Photo review" &&
+        (!!r.pendingPhotoId || (!!r.photoKey && !r.photoApproved))),
+    [refreshed],
+  );
   function setQuery(value: string) {
     setQueryValue(value);
     setPage(1);
@@ -149,17 +169,19 @@ export default function Portal({ view = "overview" }: { view?: string }) {
   );
   const filtered = useMemo(
     () =>
-      visible.filter(
-        (r) =>
-          (statusFilter === "All reports" || r.status === statusFilter) &&
-          (category === "All categories" || r.category === category) &&
-          (department === "All departments" || r.department === department) &&
-          [r.id, r.title, r.description, r.locationText, r.department]
-            .join(" ")
-            .toLowerCase()
-            .includes(query.toLowerCase()),
-      ),
-    [visible, statusFilter, category, department, query],
+      visible
+        .filter((r) => matchesQueue(r, queue))
+        .filter(
+          (r) =>
+            (statusFilter === "All reports" || r.status === statusFilter) &&
+            (category === "All categories" || r.category === category) &&
+            (department === "All departments" || r.department === department) &&
+            [r.id, r.title, r.description, r.locationText, r.department]
+              .join(" ")
+              .toLowerCase()
+              .includes(query.toLowerCase()),
+        ),
+    [visible, statusFilter, category, department, query, queue, matchesQueue],
   );
   const selectedReport = useCallback(
       (report: Report) => setSelected(report.id),
@@ -174,11 +196,15 @@ export default function Portal({ view = "overview" }: { view?: string }) {
     },
     [refresh],
   );
-  const resolved = visible.filter((r) => r.status === "Resolved").length,
+  const resolved = visible.filter((r) =>
+      ["Resolved", "Closed"].includes(r.status),
+    ).length,
     open = visible.length - resolved,
     inProgress = visible.filter((r) => r.status === "In progress").length,
     unassigned = visible.filter(
-      (r) => r.department === "Unassigned" && r.status !== "Resolved",
+      (r) =>
+        r.department === "Unassigned" &&
+        !["Resolved", "Closed"].includes(r.status),
     ).length;
   const ratio = visible.length
     ? Math.round((resolved / visible.length) * 100)
@@ -373,6 +399,34 @@ export default function Portal({ view = "overview" }: { view?: string }) {
         </div>
       )}
       {["overview", "disruptions"].includes(view) && (
+        <div
+          className="queue-strip"
+          role="group"
+          aria-label="Municipal work queues"
+        >
+          {[
+            "All work",
+            "New / unassigned",
+            "Awaiting provider",
+            "Clarification requested",
+            "Overdue",
+            "Escalated",
+            "Photo review",
+          ].map((q) => (
+            <button
+              key={q}
+              aria-pressed={queue === q}
+              onClick={() => {
+                setQueue(q);
+                setPage(1);
+              }}
+            >
+              {q} · {visible.filter((r) => matchesQueue(r, q)).length}
+            </button>
+          ))}
+        </div>
+      )}
+      {["overview", "disruptions"].includes(view) && (
         <>
           <div className="stat-grid">
             {[
@@ -403,7 +457,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                   visible
                     .filter(
                       (r) =>
-                        r.status !== "Resolved" &&
+                        !["Resolved", "Closed"].includes(r.status) &&
                         r.department !== "Unassigned",
                     )
                     .map((r) => r.department),
@@ -605,21 +659,22 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                 </section>
                 <section className="panel citizen-service-panel">
                   <div className="panel-heading">
-                    <h2>Citizen services</h2>
+                    <h2>Department coordination</h2>
                   </div>
                   <div className="citizen-service-body">
                     <p>
-                      Submit a disruption report or check the status of an
-                      existing reference.
+                      Assign responsibility, coordinate provider contact and
+                      record action taken against a complaint reference.
                     </p>
-                    <Link href="/report" className="button primary">
-                      Submit a report <ArrowUpRight size={14} />
+                    <Link href="/departments" className="button primary">
+                      Department workload <ArrowUpRight size={14} />
                     </Link>
                     <Link href="/track" className="button">
-                      Track report status <Search size={14} />
+                      Complaint lookup <Search size={14} />
                     </Link>
                     <small>
-                      Keep your report reference for future enquiries.
+                      Citizen submissions are available only in the citizen
+                      portal.
                     </small>
                   </div>
                 </section>
@@ -768,16 +823,19 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                   .toLowerCase()
                   .includes(query.toLowerCase()),
             );
-            const active = assigned.filter((r) => r.status !== "Resolved"),
+            const active = assigned.filter(
+                (r) => !["Resolved", "Closed"].includes(r.status),
+              ),
               done = assigned.length - active.length;
-            const Icon = [Route, Lightbulb, Trash2, Droplets, Trees][i];
+            const Icon =
+              [Route, Lightbulb, Trash2, Droplets, Trees, Wifi][i] ?? Building2;
             return (
               <section className="panel department-card" key={d}>
                 <div className="department-card-top">
                   <span
                     className={
                       "stat-icon " +
-                      ["green", "amber", "lime", "blue", "green"][i]
+                      ["green", "amber", "lime", "blue", "green", "blue"][i]
                     }
                   >
                     <Icon size={21} />
@@ -793,6 +851,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                       "Waste collection and public cleanliness",
                       "Water supply, drainage, and flooding",
                       "Trees, parks, and shared green spaces",
+                      "Internet and mobile provider liaison and service restoration",
                     ][i]
                   }
                 </p>
@@ -900,7 +959,7 @@ export default function Portal({ view = "overview" }: { view?: string }) {
                 Snitch brings the report, the responsible department, and every
                 update into one shared workflow.
               </p>
-              <Link href="/report" className="button light">
+              <Link href="/disruptions" className="button light">
                 Open report registration <ArrowUpRight size={14} />
               </Link>
             </div>

@@ -1,10 +1,11 @@
-import { actor, apiError, listReports } from "@/lib/server";
+import { apiError, listReports } from "@/lib/server";
 import { dateLabel } from "@/lib/domain";
 import { renderCsv } from "@/lib/csv";
+import { presentReports } from "@/lib/complaints";
 
 export async function GET(request: Request) {
   try {
-    await actor(request);
+    const user = await requireRole(request, "official");
     const params = new URL(request.url).searchParams;
     const query = (params.get("query") ?? "").toLowerCase();
     const status = params.get("status") ?? "All reports";
@@ -28,10 +29,12 @@ export async function GET(request: Request) {
           .toLowerCase()
           .includes(query),
     );
+    const enriched = await presentReports(reports, user);
     return new Response(
       renderCsv([
         [
           "Reference",
+          "Title",
           "Description",
           "Category",
           "Location",
@@ -40,9 +43,18 @@ export async function GET(request: Request) {
           "Priority",
           "Created (IST)",
           "Demo",
+          "Ward / locality",
+          "Responsible official",
+          "Response target (IST)",
+          "Provider",
+          "Provider reference",
+          "Coordination stage",
+          "Escalated",
+          "Citizens affected",
         ],
-        ...reports.map((report) => [
+        ...enriched.map((report) => [
           report.id,
+          report.title,
           report.description,
           report.category,
           report.locationText,
@@ -51,6 +63,14 @@ export async function GET(request: Request) {
           report.priority,
           dateLabel(report.createdAt),
           report.isDemo ? "Yes" : "No",
+          report.ward ?? "",
+          report.assignee ?? "",
+          report.dueAt ? dateLabel(report.dueAt) : "",
+          report.provider ?? "",
+          report.providerTicket ?? "",
+          report.coordination ?? "",
+          report.escalated ? "Yes" : "No",
+          String(report.supportCount ?? 0),
         ]),
       ]),
       {
@@ -67,3 +87,4 @@ export async function GET(request: Request) {
     return apiError(error);
   }
 }
+import { requireRole } from "@/lib/auth";

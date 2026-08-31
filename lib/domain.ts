@@ -4,6 +4,7 @@ export const STATUSES = [
   "Assigned",
   "In progress",
   "Resolved",
+  "Closed",
 ] as const;
 export const CATEGORIES = [
   "Roads & footpaths",
@@ -12,6 +13,7 @@ export const CATEGORIES = [
   "Water & drainage",
   "Parks & public spaces",
   "Needs classification",
+  "Internet & mobile network",
 ] as const;
 export const DEPARTMENTS = [
   "Unassigned",
@@ -20,6 +22,7 @@ export const DEPARTMENTS = [
   "Sanitation",
   "Water & Drainage",
   "Parks & Horticulture",
+  "Telecom Coordination",
 ] as const;
 export const PRIORITIES = [
   "Unassessed",
@@ -61,6 +64,22 @@ export interface Report {
   resolvedAt: number | null;
   revision: number;
   context: Context;
+  ward?: string;
+  provider?: string;
+  assignee?: string;
+  dueAt?: number | null;
+  providerTicket?: string;
+  coordination?: string;
+  clarification?: string;
+  escalated?: boolean;
+  owned?: boolean;
+  supportCount?: number;
+  supported?: boolean;
+  canContributePhoto?: boolean;
+  photoApproved?: boolean;
+  pendingPhotoId?: string | null;
+  pendingPhotoKey?: string | null;
+  demoPhoto?: string | null;
 }
 export interface ReportEvent {
   id: string;
@@ -73,6 +92,7 @@ export interface ReportEvent {
   photoKey: string | null;
 }
 export interface ReportInput {
+  title?: string;
   description: string;
   locationText: string;
   latitude: number | null;
@@ -117,6 +137,10 @@ export function distanceMeters(a: number, b: number, c: number, d: number) {
 export function classify(description: string): Category {
   const text = description.toLowerCase();
   const matches: [Category, RegExp][] = [
+    [
+      "Internet & mobile network",
+      /\b(internet|broadband|telecom|wi-?fi|mobile signal|network outage|fiber|fibre|service provider)\b/,
+    ],
     [
       "Street lighting",
       /\b(street.?lights?|lamps?|light.?poles?|wiring|electric|cables?)\b/,
@@ -293,7 +317,8 @@ export function validateTransition(
     Verified: ["Assigned"],
     Assigned: ["In progress", "Verified"],
     "In progress": ["Resolved", "Assigned"],
-    Resolved: ["Verified"],
+    Resolved: ["Verified", "Closed"],
+    Closed: ["Verified"],
   };
   if (!allowed[from].includes(to))
     throw new Error(
@@ -306,7 +331,7 @@ export function validateTransition(
     throw new Error("Assign a department before advancing this report.");
   if (to === "Resolved" && note.trim().length < 12)
     throw new Error("Add a resolution summary of at least 12 characters.");
-  if (from === "Resolved" && note.trim().length < 12)
+  if ((from === "Resolved" || from === "Closed") && note.trim().length < 12)
     throw new Error(
       "Explain why the report is being reopened (at least 12 characters).",
     );

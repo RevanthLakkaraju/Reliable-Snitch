@@ -4,7 +4,11 @@ import {
   integer,
   real,
   index,
+  primaryKey,
+  uniqueIndex,
+  check,
 } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 export const reports = sqliteTable(
   "reports",
   {
@@ -59,3 +63,93 @@ export const uploads = sqliteTable("uploads", {
   size: integer("size").notNull(),
   createdAt: integer("created_at").notNull(),
 });
+export const portalUsers = sqliteTable(
+  "portal_users",
+  {
+    id: text("id").primaryKey(),
+    username: text("username").notNull().unique(),
+    name: text("name").notNull(),
+    role: text("role").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    salt: text("salt").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [check("portal_user_role", sql`${t.role} IN ('citizen','official')`)],
+);
+export const portalSessions = sqliteTable(
+  "portal_sessions",
+  {
+    tokenHash: text("token_hash").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => portalUsers.id),
+    expiresAt: integer("expires_at").notNull(),
+    officialCodeHash: text("official_code_hash"),
+  },
+  (t) => [index("idx_portal_sessions_expiry").on(t.expiresAt)],
+);
+export const portalRateLimits = sqliteTable("portal_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
+export const complaintRegistry = sqliteTable(
+  "complaint_registry",
+  {
+    reportId: text("report_id")
+      .primaryKey()
+      .references(() => reports.id),
+    ownerId: text("owner_id"),
+    ward: text("ward").notNull().default("Unverified locality"),
+    provider: text("provider").notNull().default(""),
+    assignee: text("assignee").notNull().default(""),
+    dueAt: integer("due_at"),
+    providerTicket: text("provider_ticket").notNull().default(""),
+    coordination: text("coordination").notNull().default("Not required"),
+    clarification: text("clarification").notNull().default(""),
+    escalated: integer("escalated").notNull().default(0),
+    photoApproved: integer("photo_approved").notNull().default(0),
+  },
+  (t) => [index("idx_registry_owner").on(t.ownerId)],
+);
+export const complaintSupports = sqliteTable(
+  "complaint_supports",
+  {
+    reportId: text("report_id")
+      .notNull()
+      .references(() => reports.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => portalUsers.id),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.reportId, t.userId] })],
+);
+export const complaintPhotos = sqliteTable(
+  "complaint_photos",
+  {
+    id: text("id").primaryKey(),
+    reportId: text("report_id")
+      .notNull()
+      .references(() => reports.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => portalUsers.id),
+    photoKey: text("photo_key")
+      .notNull()
+      .unique()
+      .references(() => uploads.key),
+    status: text("status").notNull().default("pending"),
+    createdAt: integer("created_at").notNull(),
+    reviewedAt: integer("reviewed_at"),
+  },
+  (t) => [
+    uniqueIndex("idx_one_pending_photo")
+      .on(t.reportId)
+      .where(sql`${t.status}='pending'`),
+    check(
+      "photo_review_status",
+      sql`${t.status} IN ('pending','approved','rejected')`,
+    ),
+  ],
+);

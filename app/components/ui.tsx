@@ -3,6 +3,8 @@ import Link from "./navigation-link";
 
 import { useRef, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { useViewer } from "../access-context";
+import { SignOut } from "../team-access";
 import {
   LayoutDashboard,
   ClipboardList,
@@ -19,6 +21,7 @@ import {
   Trash2,
   Droplets,
   Trees,
+  Wifi,
   HelpCircle,
   Check,
   Clock,
@@ -28,9 +31,6 @@ import { statusClass, type Category, type Status } from "@/lib/domain";
 export function Brand() {
   return (
     <Link className="brand" href="/">
-      <span className="eye-mark">
-        <i />
-      </span>
       <span className="brand-name">
         Reliable Snitch
         <span className="brand-caption">CIVIC SERVICES MANAGEMENT PORTAL</span>
@@ -62,6 +62,7 @@ const navigation = [
   },
 ];
 function PortalMasthead() {
+  const viewer = useViewer();
   return (
     <>
       <div className="gov-utility">
@@ -83,12 +84,18 @@ function PortalMasthead() {
             </div>
           </div>
           <div className="gov-citizen-links">
-            <Link href="/report">
-              Submit a report <ArrowUpRight size={14} />
-            </Link>
+            {viewer?.role !== "official" && (
+              <Link href="/report">
+                Submit a report <ArrowUpRight size={14} />
+              </Link>
+            )}
             <Link href="/track">
-              Track report status <ChevronRight size={14} />
+              {viewer?.role === "official"
+                ? "Complaint lookup"
+                : "Track report status"}{" "}
+              <ChevronRight size={14} />
             </Link>
+            {viewer && <SignOut />}
           </div>
         </div>
       </header>
@@ -178,7 +185,9 @@ export function Shell({
                 />
               </label>
             )}
-            <span className="gov-operator-label">Demo operations team</span>
+            <span className="gov-operator-label">
+              Municipal demonstration portal
+            </span>
           </div>
         </div>
         <main className="main-content" id="main">
@@ -201,6 +210,7 @@ export function Shell({
 }
 export function CitizenHeader() {
   const pathname = usePathname();
+  const viewer = useViewer();
   return (
     <>
       <Link href="#citizen-main" className="skip-link">
@@ -212,12 +222,21 @@ export function CitizenHeader() {
           className="gov-container gov-citizen-navigation"
           aria-label="Citizen services"
         >
-          {[
-            ["/report", "Submit a report"],
-            ["/track", "Track report status"],
-            ["/", "Operations dashboard"],
-            ["/about", "Portal information"],
-          ].map(([href, label]) => (
+          {(viewer?.role === "official"
+            ? [
+                ["/", "Municipal dashboard"],
+                ["/disruptions", "Complaint register"],
+                ["/track", "Complaint lookup"],
+                ["/about", "Portal information"],
+              ]
+            : [
+                ["/report", "Submit a report"],
+                ["/track", "Track report status"],
+                ["/citizen", "My complaints"],
+                ["/nearby", "Nearby complaints"],
+                ["/about", "Portal information"],
+              ]
+          ).map(([href, label]) => (
             <Link
               key={href}
               href={href}
@@ -257,7 +276,9 @@ export function CategoryIcon({
             ? Droplets
             : category === "Parks & public spaces"
               ? Trees
-              : HelpCircle;
+              : category === "Internet & mobile network"
+                ? Wifi
+                : HelpCircle;
   return (
     <span
       className={
@@ -299,13 +320,14 @@ export function EmptyState({
   );
 }
 export function Stepper({ status }: { status: Status }) {
-  const stages: [
+  const stages: Status[] = [
     "Reported",
     "Verified",
     "Assigned",
     "In progress",
     "Resolved",
-  ] = ["Reported", "Verified", "Assigned", "In progress", "Resolved"];
+    "Closed",
+  ];
   const current = stages.indexOf(status);
   return (
     <ol className="stepper">
@@ -332,6 +354,14 @@ export function Stepper({ status }: { status: Status }) {
   );
 }
 export function ReportButton() {
+  const viewer = useViewer();
+  if (viewer?.role === "official")
+    return (
+      <Link href="/disruptions" className="button primary">
+        <ClipboardList size={16} />
+        Complaint register
+      </Link>
+    );
   return (
     <Link href="/report" className="button primary">
       <Plus size={16} />

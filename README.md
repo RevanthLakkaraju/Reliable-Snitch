@@ -1,90 +1,93 @@
 # Reliable Snitch
+A working civic-disruption management prototype in the existing blue government-portal style. **Not an official government service. Use non-sensitive demonstration content only.**
 
-**Spot it. Report it. Resolve it.**
+## Access and roles
 
-A working, invitation-protected ideathon prototype for civic disruption management. It is not connected to a municipality or emergency service.
+- **Citizen:** create an individual username/password account; check nearby complaints; submit a titled report with a photo and location; track only complaints belonging to that account.
+- **Municipal official:** create an individual account using the owner-issued municipal access code. Every subsequent sign-in requires the username, password **and access code**. Officials review and manage complaints; they cannot submit citizen reports.
+- Registration with a code is a demonstration admission mechanism, not independent verification of government employment. Citizens are not verified against a government identity database.
+- Passwords are salted and hashed with PBKDF2 and a server-side pepper. Session tokens are random, stored hashed, expire after eight hours, and are revoked on sign-out. Official sessions are also tied to the current municipal code hash.
+- Role and ownership checks run on the server for reports, edits, photos, activity and export. A URL, a browser role choice or the former team invitation does not grant official access.
+- Account recovery, production identity verification and a full security audit are not included. Keep your prototype credentials. Do not rotate the password pepper while retaining the existing accounts.
 
-## The product
+## Screens and workflows
 
-- `/report`: citizen photo upload, free-text description, GPS/manual pin/landmark location, and a saved reference.
-- `/`: operations overview with shared metrics and recent activity.
-- `/disruptions`: searchable report list, filters, status board, CSV export, and an editable report drawer.
-- `/map`: mapped reports; demonstration facilities are explicitly fictional.
-- `/departments`: workload and ownership across five mock departments.
-- `/activity`: recorded changes and notes.
-- `/track`: a read-only citizen view with public updates only.
-- `/about`: a presentation walkthrough and clear prototype limitations.
+| Citizen services | Municipal services |
+| --- | --- |
+| `/citizen`: personal register and optional private sample scenarios | `/`: overview and work queues |
+| `/nearby`: GPS/manual/locality search, photos, titles, status | `/disruptions`: searchable register, status board, CSV export |
+| `/report`: explicit title, free-text description, camera/upload, location | `/map`: mapped register with photos |
+| `/track`: personal receipt, public history, clarification and resolution actions | `/departments`, `/activity`: workloads and audit history |
+| `/about`: limitations and photograph credits | `/track`: official complaint lookup |
 
-## What is real, and what is simulated
+Normal navigation uses native same-tab links. The previous hosted client-router click problem is covered by regression tests.
 
-Reports are persisted in D1. Uploaded images are stored in R2. The reporting, assignment, status changes, event history, public/internal notes, and tracking workflows are functional. Image uploads are re-encoded in the browser to remove original metadata. GPS is requested only after the citizen presses the location button.
+**One complaint, one reference:** “I’m affected too” records at most one support per account and can be undone. It does not create another report. A missing photo can be contributed to the original complaint; an official must approve it before other citizens see it. The original author’s title and description are not overwritten. Nearby suggestions help people check existing complaints without automatically rejecting genuinely separate incidents.
 
-Sample reports, facilities, municipal departments, and actions are illustrative. The category suggestion is a transparent keyword matcher, **not image AI**. Optional priority is assigned by staff; GPS does not determine urgency. The original photo and description remain available for human review.
+**Internet/mobile complaints:** the reporter must select Airtel, Jio, BSNL, Vi, ACT Fibernet or Other (with a name). Officials record the selected provider’s ticket/reference and coordination stage. No phone calls, emails, SMS or provider API requests are sent.
 
-This is the deployment-only copy of the blue government-style portal at commit `329e5ef`. The original localhost project and dated backup are unchanged. All existing portal screens, stylesheets, camera/GPS/photo processing, and workflows are preserved.
+**Action register:** locality/ward, responsible official/staff reference, department, response target, escalation flag, clarification request, provider coordination and photo review. Transfers and register changes require an action-taken note. Public and internal histories are separated.
 
-The hosted entry page is public, but every data, image, export, upload, and update API requires a signed team session. An invitation contains a cryptographically random 32-byte capability in its URL fragment (`#access=...`), which is removed before use and exchanged over HTTPS for a 24-hour HttpOnly, Secure, SameSite cookie. Only the SHA-256 hash of the invitation and an independent HMAC session key are stored as Sites runtime secrets. No account sign-in or installation is required. Public visitors without the invitation cannot load records, upload evidence, export data, or change statuses. A forged platform identity header is not accepted as team authorization.
+`Reported → Verified → Assigned → In progress → Resolved → Closed`
 
-Anyone who receives the invitation is a full demo operator and may submit reports and edit the shared mock dashboard. Share it only with teammates and use non-sensitive demonstration content. This is a team demonstration, not an anonymous public municipal service. To revoke an invitation and all sessions, rotate both runtime secrets and redeploy. Keep invitation links out of public repositories, screenshots, and public posts.
+The original complainant can answer a clarification, confirm a resolution, or reopen a resolved/closed case with a reason. Revision checks reject conflicting edits, and database batches keep changes and audit events together. Client-generated request IDs make retrying a report idempotent.
 
-The hosted database contains the original 12 illustrative reports; localhost reports/photos are not copied. Verified facility coverage, individual staff/citizen roles for a real pilot, notifications, emergency dispatch, abuse controls, and a data-retention programme are still outside this prototype.
+## Demonstration data and storage
 
-## Run locally
+D1 persists accounts, reports, support, review state and history. R2 stores uploaded photos. Local storage is under the ignored `.wrangler/` directory; hosted and local data/accounts are separate. Do not delete it if you need local records.
 
-Use Node.js 22.13+ (Node 24 is used for the native TypeScript tests) and the project's pnpm version/lockfile.
+Sixteen shared fictional scenarios cover civic and network issues. “Load my demonstration complaints” adds two sample cases to that citizen account only: a clarification request and a simulated provider resolution. Reloading samples does not duplicate them. Existing pre-upgrade reports are preserved for municipal review; they are not automatically assigned to a newly registered citizen.
+
+Nearby summaries intentionally disclose location, title, description and approved photos, but not citizen account identities, staff-only notes or pending photos. Use no sensitive information. Automatic re-encoding in the normal browser upload flow strips original photo metadata. Raw direct API uploads are not a substitute for a production image-sanitization service.
+
+Real photographs from India are used only as illustrative context. Titles, incident descriptions, wards and mapped locations are fictional, and photographs do not prove an outage or repair. Files remain under their attributed licences:
+
+- Gangaasoonu — [Roads deformed T munnekollala Bengaluru 2](https://commons.wikimedia.org/wiki/File:Roads_deformed_T_munnekollala_Bengaluru_2.jpg), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- melgupta — [Garbage Disposal Hyderabad 2005](https://commons.wikimedia.org/wiki/File:Garbage_Disposal_Hyderabad_2005.jpg), [CC BY-SA 2.0](https://creativecommons.org/licenses/by-sa/2.0/).
+- Oo7abhishekcool — [Drainage Problem in Navagarhi](https://commons.wikimedia.org/wiki/File:Drainage_Problem_in_Navagarhi.jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+- Adbh266 — [Gachibowli flyover](https://commons.wikimedia.org/wiki/File:Gachibowli_flyover.jpg), [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+
+Original/resized Wikimedia files are hosted locally; no content edits were made. Cards may crop their display. Photographers do not endorse this project. Credits also appear at `/about#photo-credits`.
+
+## Start a new local checkout
+
+Use Node.js 24 and pnpm.
 
 ```sh
 pnpm install
+pnpm setup:local
 pnpm dev
 ```
 
-If pnpm requests native-dependency build approvals, review and approve the specific generated dependencies; do not disable the package-security policy. The committed allowlist contains the native dependencies used by the scaffold.
+Open http://localhost:3000. Setup generates an ignored `.env` and `LOCAL-ACCESS.private.txt` containing the new local municipal code. It refuses to overwrite an existing `.env`. Existing configured working copies need only `pnpm dev`.
 
-Local D1/R2 state is maintained under `.wrangler/` and is not included in the deployment. Twelve sample records are inserted idempotently. Submitted reports and edits survive page reloads and server restarts.
+For a different port, change `SITE_ORIGIN` to that exact localhost origin and start with `pnpm dev --port PORT`. The municipal code of a new clone is local-only; the live website uses its separately configured code. Never upload private access files or `.env`.
+
+The owner's existing **Start Working Version.cmd** launcher continues to open the configured working copy on port 3000. The dated backup is separate and is not changed by this upgrade.
+
+## Verify
 
 ```sh
 pnpm typecheck
 pnpm lint
 pnpm test
-# With the local development server running:
-pnpm test:integration
 pnpm build
 ```
 
-Integration tests refuse to run against a non-local URL. They create clearly labelled QA reports in local development storage only. The deployed workspace starts with the demonstration records, not local test data.
+Integration tests require the development server plus `TEST_BASE_URL` and the private `TEST_OFFICIAL_ACCESS_CODE` supplied as environment variables, then `pnpm test:integration`. They refuse non-local destinations and create clearly labelled QA data only locally. Do not run the obsolete pre-account `tests/api.test.mjs`; the active suite is `tests/roles-api.test.mjs`.
 
-## Workflow and data integrity
+## Hosting and secrets
 
-`Reported → Verified → Assigned → In progress → Resolved`
+The existing Sites project is identified in `.openai/hosting.json`. Build and publish that project; do not create a duplicate site. The repository can stay private while the hosted sign-in screen remains publicly reachable.
 
-A resolved report can be reopened to Verified with a reason. Assignment is required before active work. Resolution needs a written summary and supports an optional evidence photo. Optimistic revisions reject stale edits; D1 batches keep events and report updates atomic. A client-generated request identifier prevents duplicate submissions, including concurrent retries. Server queries use bound parameters.
+Set runtime secrets `DEMO_SESSION_SECRET` (password pepper) and `OFFICIAL_ACCESS_CODE_HASH` (SHA-256 of the random owner-issued municipal code), plus `SITE_ORIGIN` set to the exact live origin. Code changes use versioned deployments and additive Drizzle migrations. The old `DEMO_ACCESS_CODE_HASH` invitation is no longer used.
 
-Tables are declared in `db/schema.ts`; deployment migrations are in `drizzle/`. `lib/server.ts` owns database access and server-side validation. `lib/domain.ts` contains portable rules, statuses, category suggestions, and demonstration facility-distance calculations.
+Rotating only the municipal code hash revokes official sessions and requires the new code on their next sign-in. It does not change account passwords. Keep the raw code out of the site source, URL, browser bundle and public documentation.
 
-## A two-minute demo
+## Camera, GPS and limitations
 
-1. Open the citizen portal on a phone; upload a non-sensitive image and describe the issue.
-2. Choose a labelled demo location (or confirm a real location with permission), then submit.
-3. Copy the new reference and open Disruptions on a second device using the team invitation.
-4. Verify the report, assign a department, mark it In progress, then resolve it with a summary.
-5. Open the reference in Track a report to show the public history. Add a private note in operations to demonstrate that it is excluded from the citizen view.
+Take photo requests video only and prefers the rear camera. Capture, retake, use-photo, camera switching and native-file fallback are retained. Camera streams are stopped on closing/capture/switching, including late permission responses. Camera and GPS require permission, compatible hardware and HTTPS or localhost; test on the particular phone before presenting.
 
-## Design and credits
+GPS is requested on the user's button press. A denied/unavailable location has manual-pin and landmark fallbacks. Map tiles need internet; the complaint list still works if tiles fail. The blue design is retained and the eye logo is replaced by a text wordmark.
 
-The working portal uses a restrained civic-service presentation: navy-and-white
-masthead, horizontal service navigation, a structured report register, plain
-page headings, and bordered forms. `app/government.css` is the presentation
-layer over the existing component styles. The name, data model, reporting and
-camera workflows, and existing social-preview image are preserved. A prominent
-demonstration notice makes clear that this is not an official government service.
-The dated backup outside this project retains the previous design.
-
-Lucide icons; Leaflet maps with OpenStreetMap attribution. The branded social card was generated with the built-in image-generation tool using the Reliable Snitch title and tagline, forest-green/ivory/lime palette, and abstract street-grid motif. No generated picture is presented as real evidence of a civic issue.
-
-The existing hosted address and TE-prefixed report references are intentionally preserved so saved links and reports remain valid after rebranding.
-
-## Camera reporting
-
-“Take photo” opens a live camera dialog, prefers the rear camera, and never requests a microphone. Capture, review, retake, use-photo, and camera switching (when multiple cameras are available) are supported. Closing, capturing, switching, or choosing a file releases the current camera. Late permission responses cannot revive a closed camera.
-
-If live camera permission is denied, the interface explains how to retry and offers the device’s native camera picker and ordinary photo upload. Live capture requires a supported browser, HTTPS (or localhost), camera hardware, and permission. An actual phone-camera check is still required before presenting on a particular phone; automated tests use synthetic camera streams/frames, and the test browser denied camera access.
+This is not a production emergency or municipal service. Facility data, category keywords, deadlines, escalation and provider scenarios are explicitly illustrative; no automated danger decision or real-world dispatch occurs. Large-scale operations need independently verified identities, managed account recovery, stronger abuse/operational controls, privacy and retention policies, monitoring, accessibility testing and security review.

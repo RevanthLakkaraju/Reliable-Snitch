@@ -30,6 +30,10 @@ import {
 } from "@/lib/domain";
 import { requestJson, imageUrl, preparePhoto, uploadPhoto } from "@/lib/client";
 import { StatusBadge, Stepper, Spinner } from "./ui";
+import RegisterFields, {
+  registerForm,
+  type RegisterForm,
+} from "./register-fields";
 export function Timeline({ events }: { events: ReportEvent[] }) {
   return (
     <div className="timeline">
@@ -102,6 +106,7 @@ export default function ReportDetail({
     [priority, setPriority] = useState<Priority>("Unassessed");
   const closeRef = useRef<HTMLButtonElement>(null),
     panelRef = useRef<HTMLDivElement>(null);
+  const [register, setRegister] = useState<RegisterForm | null>(null);
   useEffect(() => {
     let cancelled = false;
     requestJson<{ report: Report; events: ReportEvent[] }>(
@@ -110,6 +115,7 @@ export default function ReportDetail({
       .then((data) => {
         if (cancelled) return;
         setReport(data.report);
+        setRegister(registerForm(data.report));
         setEvents(data.events);
         setStatus(data.report.status);
         setCategory(data.report.category);
@@ -169,6 +175,14 @@ export default function ReportDetail({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            ...register,
+            dueAt:
+              register?.dueAt === registerForm(report).dueAt
+                ? (report.dueAt ?? null)
+                : register?.dueAt
+                  ? new Date(register.dueAt).getTime()
+                  : null,
+            pendingPhotoId: report.pendingPhotoId,
             revision: report.revision,
             status,
             category,
@@ -186,6 +200,7 @@ export default function ReportDetail({
         },
       );
       setReport(data.report);
+      setRegister(registerForm(data.report));
       setEvents(data.events);
       setNote("");
       setResolutionFile(null);
@@ -315,6 +330,24 @@ export default function ReportDetail({
                           Open original <ArrowUpRight size={12} />
                         </span>
                       </Link>
+                    ) : report.demoPhoto ? (
+                      <div>
+                        <Image
+                          unoptimized
+                          width={960}
+                          height={540}
+                          src={report.demoPhoto}
+                          alt={
+                            "Illustrative Indian street photograph for " +
+                            report.title
+                          }
+                        />
+                        <small className="photo-credit">
+                          Illustrative photograph, not evidence of this
+                          fictional incident.{" "}
+                          <Link href="/about#photo-credits">Photo credits</Link>
+                        </small>
+                      </div>
                     ) : (
                       <div className="no-photo">
                         <ImageIcon size={28} />
@@ -394,6 +427,13 @@ export default function ReportDetail({
                   </div>
                   <div className="detail-section">
                     <h3>Coordinate the next step</h3>
+                    {register && (
+                      <RegisterFields
+                        report={report}
+                        value={register}
+                        onChange={setRegister}
+                      />
+                    )}
                     <p className="field-hint">
                       Staff decisions are recorded in the report history.
                     </p>

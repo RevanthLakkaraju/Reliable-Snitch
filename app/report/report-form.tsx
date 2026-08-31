@@ -29,6 +29,8 @@ import {
 } from "lucide-react";
 import {
   classify,
+  CATEGORIES,
+  dateLabel,
   DEMO_LOCATIONS,
   type Report,
   type LocationSource,
@@ -37,7 +39,14 @@ import { preparePhoto, requestJson, uploadPhoto } from "@/lib/client";
 import { CitizenHeader, Spinner } from "../components/ui";
 import CityMap from "../components/city-map";
 import CameraCapture from "../components/camera-capture";
+import NearbyMatches from "../components/nearby-matches";
+import { PROVIDERS } from "@/lib/civic";
 export default function ReportForm() {
+  const [title, setTitle] = useState(""),
+    [categoryChoice, setCategoryChoice] = useState(""),
+    [provider, setProvider] = useState(""),
+    [otherProvider, setOtherProvider] = useState(""),
+    [ward, setWard] = useState("Locality to be verified");
   const [description, setDescription] = useState(""),
     [locationText, setLocationText] = useState(""),
     [point, setPoint] = useState<{
@@ -64,6 +73,11 @@ export default function ReportForm() {
     photoGeneration = useRef(0),
     gpsGeneration = useRef(0),
     submitLock = useRef(false);
+  const suggestedCategory = classify(description);
+  const category =
+    suggestedCategory === "Internet & mobile network"
+      ? suggestedCategory
+      : categoryChoice || suggestedCategory;
   useEffect(() => {
     requestId.current = crypto.randomUUID();
   }, []);
@@ -165,6 +179,11 @@ export default function ReportForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          title,
+          category,
+          provider,
+          otherProvider,
+          ward,
           requestId: requestId.current,
           description,
           locationText,
@@ -215,6 +234,11 @@ export default function ReportForm() {
     uploadedKey.current = null;
     requestId.current = crypto.randomUUID();
     setDescription("");
+    setTitle("");
+    setCategoryChoice("");
+    setProvider("");
+    setOtherProvider("");
+    setWard("Locality to be verified");
     setLocationText("");
     setPoint(null);
     setAccuracy(null);
@@ -265,12 +289,33 @@ export default function ReportForm() {
             {success.isDemo && <span className="tag">Demo location</span>}
           </div>
           {error && <div className="error-message">{error}</div>}
+          <div className="receipt-meta">
+            <span>
+              <strong>Registered:</strong> {dateLabel(success.createdAt)} IST
+            </span>
+            <span>
+              <strong>Locality / ward:</strong> {success.ward}
+            </span>
+            <span>
+              <strong>Category:</strong> {success.category}
+            </span>
+            <span>
+              <strong>Provider:</strong> {success.provider || "Not applicable"}
+            </span>
+          </div>
+          <button
+            className="button"
+            type="button"
+            onClick={() => window.print()}
+          >
+            Print acknowledgement
+          </button>
           <div className="success-actions">
             <Link className="button primary" href={"/track?code=" + success.id}>
               Track this report <ArrowRight size={15} />
             </Link>
-            <Link className="button" href="/disruptions">
-              Open operations <ArrowUpRight size={14} />
+            <Link className="button" href="/citizen">
+              My complaint register <ArrowUpRight size={14} />
             </Link>
           </div>
           <button type="button" onClick={resetReport} className="text-link">
@@ -426,6 +471,17 @@ export default function ReportForm() {
                 <label className="sr-only" htmlFor="description">
                   Describe the disruption
                 </label>
+                <label className="form-label">
+                  Complaint title
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    minLength={5}
+                    maxLength={120}
+                    placeholder="Give this issue a clear, short title"
+                  />
+                </label>
                 <textarea
                   id="description"
                   className="report-description"
@@ -455,6 +511,64 @@ export default function ReportForm() {
                   </h3>
                   <small>Required</small>
                 </div>
+                <div className="network-fields">
+                  <label>
+                    Issue category
+                    <select
+                      value={category}
+                      onChange={(e) => setCategoryChoice(e.target.value)}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c}>{c}</option>
+                      ))}
+                    </select>
+                  </label>
+                  {category === "Internet & mobile network" && (
+                    <>
+                      <label>
+                        Internet / mobile service provider
+                        <select
+                          value={provider}
+                          onChange={(e) => setProvider(e.target.value)}
+                          required
+                        >
+                          <option value="">Select your service provider</option>
+                          {PROVIDERS.map((p) => (
+                            <option key={p}>{p}</option>
+                          ))}
+                        </select>
+                      </label>
+                      {provider === "Other" && (
+                        <label>
+                          Other service provider
+                          <input
+                            value={otherProvider}
+                            onChange={(e) => setOtherProvider(e.target.value)}
+                            required
+                            minLength={2}
+                            maxLength={80}
+                          />
+                        </label>
+                      )}
+                      <p className="field-hint">
+                        Municipal officials coordinate with the selected
+                        provider and record updates. This prototype does not
+                        contact providers automatically.
+                      </p>
+                    </>
+                  )}
+                  <label>
+                    Locality / ward
+                    <input
+                      value={ward}
+                      onChange={(e) => setWard(e.target.value)}
+                      required
+                      minLength={3}
+                      maxLength={120}
+                    />
+                  </label>
+                </div>
+                <NearbyMatches point={point} category={category} />
                 <div className="location-actions">
                   <button
                     type="button"

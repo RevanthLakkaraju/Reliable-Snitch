@@ -1,31 +1,27 @@
 import {
-  actor,
   checkMutation,
   json,
   apiError,
-  findReport,
   reportEvents,
   updateReport,
   parseBody,
 } from "@/lib/server";
+import { currentUser, requireRole } from "@/lib/auth";
+import { ownedReport, presentReport } from "@/lib/complaints";
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    await actor(request);
-    const { id } = await params;
-    const report = await findReport(id);
-    if (!report)
-      return json(
-        { error: "Report not found. Check the reference and try again." },
-        404,
-      );
+    const user = await currentUser(request),
+      { id } = await params,
+      report = await ownedReport(id, user);
     return json({
-      report,
+      report: await presentReport(report, user),
       events: await reportEvents(
         id,
-        new URL(request.url).searchParams.get("public") === "1",
+        user.role !== "official" ||
+          new URL(request.url).searchParams.get("public") === "1",
       ),
     });
   } catch (error) {
@@ -38,13 +34,13 @@ export async function PATCH(
 ) {
   try {
     await checkMutation(request);
-    const { id } = await params;
-    const report = await updateReport(
-      id,
-      await parseBody(request),
-      await actor(request),
-    );
-    return json({ report, events: await reportEvents(id) });
+    const user = await requireRole(request, "official"),
+      { id } = await params;
+    const report = await updateReport(id, await parseBody(request), user.id);
+    return json({
+      report: report ? await presentReport(report, user) : null,
+      events: await reportEvents(id),
+    });
   } catch (error) {
     return apiError(error);
   }

@@ -23,6 +23,7 @@ import { type Report, type ReportEvent, dateLabel } from "@/lib/domain";
 import { requestJson, imageUrl } from "@/lib/client";
 import { CitizenHeader, StatusBadge, Stepper, Spinner } from "../components/ui";
 import { Timeline } from "../components/report-detail";
+import { useViewer } from "../access-context";
 export default function Tracker({
   initialCode = "",
   initialReport = null,
@@ -34,6 +35,9 @@ export default function Tracker({
   initialEvents?: ReportEvent[];
   initialError?: string;
 }) {
+  const viewer = useViewer();
+  const [reply, setReply] = useState(""),
+    [replyMessage, setReplyMessage] = useState("");
   const [code, setCode] = useState(initialCode.toUpperCase()),
     [loadedCode, setLoadedCode] = useState(initialReport?.id ?? ""),
     [report, setReport] = useState<Report | null>(initialReport),
@@ -71,6 +75,36 @@ export default function Tracker({
       if (request === sequence.current) setBusy(false);
     }
   }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (initialCode) void load(initialCode);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [initialCode, load]);
+  async function citizenAction(action: string) {
+    if (!report) return;
+    setBusy(true);
+    setError("");
+    setReplyMessage("");
+    try {
+      await requestJson(`/api/reports/${report.id}/citizen`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          note: reply,
+          revision: report.revision,
+        }),
+      });
+      await load(report.id);
+      setReply("");
+      setReplyMessage("Your response was recorded on this complaint.");
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     if (!loadedCode) return;
     const timer = setInterval(() => {
@@ -130,17 +164,12 @@ export default function Tracker({
             <p>
               Your reference was shown when you submitted the report.
               <br />
-              For a demonstration, try{" "}
-              <button
-                className="text-link"
-                onClick={() => {
-                  setCode("TE-1001");
-                  void load("TE-1001");
-                }}
+              <Link
+                href={viewer?.role === "official" ? "/disruptions" : "/citizen"}
               >
-                TE-1001
-              </button>
-              .
+                Open your complaint register
+              </Link>{" "}
+              to find an accessible reference.
             </p>
           </div>
         )}
@@ -155,6 +184,35 @@ export default function Tracker({
                 <StatusBadge status={report.status} />
               </div>
               <h2>{report.title}</h2>
+              <div className="receipt-meta">
+                <span>
+                  <strong>Registered:</strong> {dateLabel(report.createdAt)} IST
+                </span>
+                <span>
+                  <strong>Locality / ward:</strong> {report.ward}
+                </span>
+                <span>
+                  <strong>Category:</strong> {report.category}
+                </span>
+                <span>
+                  <strong>Provider:</strong>{" "}
+                  {report.provider || "Not applicable"}
+                </span>
+                {report.provider && (
+                  <>
+                    <span>
+                      <strong>Provider stage:</strong> {report.coordination}
+                    </span>
+                    <span>
+                      <strong>Provider reference:</strong>{" "}
+                      {report.providerTicket || "Not recorded"}
+                    </span>
+                  </>
+                )}
+              </div>
+              <button className="button" onClick={() => window.print()}>
+                Print acknowledgement
+              </button>
               <p className="tracking-location">
                 <MapPin size={14} />
                 {report.locationText}
@@ -181,19 +239,82 @@ export default function Tracker({
               <div className="tracking-description">
                 <h3>Your report</h3>
                 <p>{report.description}</p>
-                {report.photoKey && (
+                {(report.photoKey || report.demoPhoto) && (
                   <Image
                     unoptimized
                     width={1600}
                     height={1000}
-                    src={imageUrl(report.photoKey)}
+                    src={
+                      report.photoKey
+                        ? imageUrl(report.photoKey)
+                        : report.demoPhoto!
+                    }
                     alt="Photo attached to this report"
                   />
+                )}
+                {report.demoPhoto && (
+                  <small className="photo-credit">
+                    Illustrative photograph, not incident evidence.{" "}
+                    <Link href="/about#photo-credits">Photo credits</Link>
+                  </small>
                 )}
                 <small>Submitted {dateLabel(report.createdAt)} IST</small>
               </div>
             </section>
             <section className="panel tracking-history">
+              {report.owned &&
+                (report.clarification ||
+                  ["Resolved", "Closed"].includes(report.status)) && (
+                  <div className="citizen-response">
+                    <h3>
+                      {report.clarification
+                        ? "Clarification requested"
+                        : "Review the resolution"}
+                    </h3>
+                    {report.clarification && <p>{report.clarification}</p>}
+                    <label>
+                      Reply or reopening reason
+                      <textarea
+                        value={reply}
+                        onChange={(e) => setReply(e.target.value)}
+                        maxLength={2000}
+                        placeholder="At least 12 characters for a reply or reopening request"
+                      />
+                    </label>
+                    {report.clarification && (
+                      <button
+                        className="button primary"
+                        disabled={busy}
+                        onClick={() => void citizenAction("reply")}
+                      >
+                        Send clarification
+                      </button>
+                    )}
+                    {report.status === "Resolved" && (
+                      <button
+                        className="button primary"
+                        disabled={busy}
+                        onClick={() => void citizenAction("confirm")}
+                      >
+                        Confirm resolved & close
+                      </button>
+                    )}
+                    {["Resolved", "Closed"].includes(report.status) && (
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => void citizenAction("reopen")}
+                      >
+                        Request reopening
+                      </button>
+                    )}
+                  </div>
+                )}
+              {replyMessage && (
+                <p className="success-message" role="status">
+                  {replyMessage}
+                </p>
+              )}
               <div className="panel-heading">
                 <div>
                   <h2>Report progress and public updates</h2>
@@ -212,12 +333,14 @@ export default function Tracker({
             </div>
           </div>
         )}
-        <div className="tracker-bottom">
-          <span>Something else needs attention?</span>
-          <Link href="/report" className="text-link">
-            Report a disruption <ArrowUpRight size={13} />
-          </Link>
-        </div>
+        {viewer?.role !== "official" && (
+          <div className="tracker-bottom">
+            <span>Something else needs attention?</span>
+            <Link href="/report" className="text-link">
+              Report a disruption <ArrowUpRight size={13} />
+            </Link>
+          </div>
+        )}
       </main>
       <footer className="citizen-footer">
         <span>RELIABLE SNITCH · CIVIC SERVICES MANAGEMENT PORTAL</span>

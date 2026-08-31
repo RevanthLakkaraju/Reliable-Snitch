@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { rateLimit } from "@/lib/auth";
 import {
   actor,
   checkMutation,
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
   let key: string | undefined;
   try {
     await checkMutation(request);
+    await rateLimit("upload:" + (await actor(request)), 50, 3600000);
     const length = Number(request.headers.get("content-length") ?? 0);
     if (length > 6 * 1024 * 1024)
       throw new HttpError(
